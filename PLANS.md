@@ -1,0 +1,5 @@
+- Inline coloring, code highlight
+- Syntactic code highlight
+- Syntactic sldz highlight
+- Table element
+- Slidez Viewer

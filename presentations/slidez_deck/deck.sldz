@@ -1,0 +1,411 @@
+// Slidez — a deck about Slidez, written in Slidez, styled by its own plugin.
+// Every feature of the language and plugin system shows up somewhere here.
+
+Slides:
+    Font: Montserrat
+    Size: 24
+    Color: "#E8ECEF"
+
+// ---------------------------------------------------------------- 1 · title
+
+SlidezTitleSlide:
+    Image: "media/logo.png"
+        Position: [0.07, 0.38]
+        Size: [0.15, 0.15]
+
+    Text: "Slidez"
+        Role: title
+        Font: Manrope
+        Bold: true
+
+    Text: "presentations as code — a tiny language that compiles to one portable PDF"
+        Role: subtitle
+
+    Text: "no browser, no HTML/CSS, no toolchain — read the whole core in an afternoon"
+        Role: company
+        Color: "#9AA7B0"
+
+// ----------------------------------------------------------------- 2 · why
+
+SlidezSlide:
+    Title: "Why Slidez"
+
+    Bullets:
+        MarkerColor: "#4CC38A"
+        Existing tools pull you in two directions
+            GUI decks (PowerPoint, Keynote, Google Slides) are opaque blobs
+            they diff poorly, merge worse, and rot in attachments
+            HTML decks (reveal.js, Slidev, Marp) need a browser and a toolchain
+        Slidez goes minimal on purpose
+            **one** plain-text file in
+            **one** portable PDF out — opens and prints anywhere
+            a Python core **small enough to clone, skim and fork**
+
+// ---------------------------------------------------------------- 3 · field
+
+SlidezTwoColumns:
+    Title: "The field"
+
+    Text: "How decks get made today:"
+        Column: 0
+        Size: 26
+
+    Bullets:
+        Column: 0
+        PowerPoint / Keynote — GUI, binary formats
+        Google Slides — GUI, lives in someone else's cloud
+        Marp / Slidev — Markdown, but ship an HTML runtime
+        reveal.js — a web app that happens to show slides
+        Beamer — PDF-native, but it is LaTeX
+
+    Text: "Where Slidez sits:"
+        Column: 1
+        Size: 26
+
+    Bullets:
+        Column: 1
+        text-first, like Marp
+        PDF-native, like Beamer
+        extensible in plain Python, unlike either
+        the compiler is meant to be read, not installed and feared
+
+// ------------------------------------------------------------ 4 · language
+
+SlidezTwoColumns:
+    Title: "The language (.sldz)"
+
+    Bullets:
+        Column: 0
+        YAML-ish, but no dashes and no YAML edge cases
+        indentation is the structure
+        bare lines are text; deeper lines nest
+        comments: "//" for lines, "/* */" for blocks
+
+    Code: "Slides:\n    Font: Manrope\n\nWhySlide:\n    Title: Why Slidez\n    Bullets:\n        one text file in\n        one portable PDF out\n            opens anywhere\n"
+        Column: 1
+        Size: 14.5
+        Fill: "#131A21"
+
+// -------------------------------------------------------- 5 · value syntax
+
+SlidezSlide:
+    Title: "Values, properties, spans"
+
+    Bullets:
+        ItemGap: 8
+        Numbers:  Size: 48 — floats welcome
+        Booleans: Bold: true
+        Lists: Position: [0.5, 0.5]
+        Colors: "#61AFEF", or named — like white
+        PascalCase keys map to snake_case attributes
+            Position -> position, BorderColor -> border_color
+        **bold spans** inside any text — **like these**
+        Position and Size are fractions of the slide, not pixels
+            what you see is what any projector gets
+
+// -------------------------------------------------------- 6 · elements grid
+
+SlidezSlide:
+    Title: "Core elements"
+    Color: "#C7D0D6"
+
+    Rect:
+        Position: [0.09, 0.30]
+        Size: [0.10, 0.12]
+        Color: "#1B242C"
+        BorderColor: "#4CC38A"
+        BorderWidth: 2
+        Radius: 8
+
+    Ellipse:
+        Position: [0.27, 0.30]
+        Size: [0.10, 0.12]
+        BorderColor: "#61AFEF"
+        BorderWidth: 2
+
+    Line:
+        Position: [0.455, 0.36]
+        Size: [0.09, 0]
+        Color: "#4CC38A"
+        BorderWidth: 2
+        Dash: [4, 3]
+
+    Line:
+        Position: [0.455, 0.42]
+        Size: [0.09, 0]
+        Color: "#9AA7B0"
+        BorderWidth: 2
+
+    Arrow:
+        Position: [0.635, 0.39]
+        Size: [0.09, 0]
+        Color: "#4CC38A"
+        BorderWidth: 2
+
+    Image: "media/logo.png"
+        Position: [0.80, 0.30]
+        Size: [0.11, 0.11]
+
+    Text: "Rect"
+        Position: [0.14, 0.50]
+        AlignH: center
+        Size: 14
+    Text: "Ellipse"
+        Position: [0.32, 0.50]
+        AlignH: center
+        Size: 14
+    Text: "Line"
+        Position: [0.50, 0.50]
+        AlignH: center
+        Size: 14
+    Text: "Arrow"
+        Position: [0.68, 0.50]
+        AlignH: center
+        Size: 14
+    Text: "Image"
+        Position: [0.855, 0.50]
+        AlignH: center
+        Size: 14
+
+    Bullets:
+        Position: [0.06, 0.64]
+        Width: 0.88
+        Size: 20
+        ...plus Text, Title, Bullets and Code for content
+        every element is positionable — or falls into the slide's flow
+        anything else you need: subclass Element in a plugin
+
+// -------------------------------------------------------- 7 · architecture
+
+SlidezSlide:
+    Title: "Architecture: text to PDF in one pass"
+
+    Rect:
+        Position: [0.045, 0.34]
+        Size: [0.13, 0.11]
+        Color: "#1B242C"
+        BorderColor: "#4CC38A"
+        Radius: 10
+    Text: ".sldz"
+        Position: [0.11, 0.395]
+        AlignH: center
+        AlignV: center
+        Size: 17
+        Color: white
+
+    Rect:
+        Position: [0.215, 0.34]
+        Size: [0.13, 0.11]
+        Color: "#1B242C"
+        BorderColor: "#4CC38A"
+        Radius: 10
+    Text: "parser"
+        Position: [0.28, 0.395]
+        AlignH: center
+        AlignV: center
+        Size: 17
+
+    Rect:
+        Position: [0.385, 0.34]
+        Size: [0.15, 0.11]
+        Color: "#1B242C"
+        BorderColor: "#61AFEF"
+        Radius: 10
+    Text: "AST + registry"
+        Position: [0.46, 0.395]
+        AlignH: center
+        AlignV: center
+        Size: 16
+
+    Rect:
+        Position: [0.575, 0.34]
+        Size: [0.13, 0.11]
+        Color: "#1B242C"
+        BorderColor: "#61AFEF"
+        Radius: 10
+    Text: "style pass"
+        Position: [0.64, 0.395]
+        AlignH: center
+        AlignV: center
+        Size: 16
+
+    Rect:
+        Position: [0.745, 0.34]
+        Size: [0.13, 0.11]
+        Color: "#1B242C"
+        BorderColor: "#4CC38A"
+        Radius: 10
+    Text: "renderer"
+        Position: [0.81, 0.395]
+        AlignH: center
+        AlignV: center
+        Size: 16
+
+    Ellipse:
+        Position: [0.915, 0.34]
+        Size: [0.075, 0.11]
+        Color: "#4CC38A"
+    Text: "PDF"
+        Position: [0.9525, 0.395]
+        AlignH: center
+        AlignV: center
+        Size: 16
+        Color: "#101418"
+        Bold: true
+
+    Arrow:
+        Position: [0.175, 0.395]
+        Size: [0.04, 0]
+        Color: "#9AA7B0"
+    Arrow:
+        Position: [0.345, 0.395]
+        Size: [0.04, 0]
+        Color: "#9AA7B0"
+    Arrow:
+        Position: [0.535, 0.395]
+        Size: [0.04, 0]
+        Color: "#9AA7B0"
+    Arrow:
+        Position: [0.705, 0.395]
+        Size: [0.04, 0]
+        Color: "#9AA7B0"
+    Arrow:
+        Position: [0.875, 0.395]
+        Size: [0.04, 0]
+        Color: "#9AA7B0"
+
+    Bullets:
+        Position: [0.06, 0.60]
+        Width: 0.88
+        Size: 20
+        plugins register elements, templates and fonts into the registry
+        the renderer is an interface — PDF today, HTML or a viewer later
+        this diagram is the diagram: Rect + Ellipse + Arrow + Text
+
+// --------------------------------------------------------------- 8 · style
+
+SlidezTwoColumns:
+    Title: "Style cascade"
+
+    Bullets:
+        Column: 0
+        Slides: sets deck-wide defaults
+        a slide overrides for its children
+        an element overrides for itself
+        nothing set anywhere -> class defaults
+        fonts resolve by name from the registry
+            Manrope, Montserrat, Liberation, Mono — or yours
+
+    Code: "Slides:\n    Font: Manrope\n    Size: 24\n\nMySlide:\n    Color: \"#E8ECEF\"   # slide-level\n\n    Text: inherits everything\n    Text: except what it sets\n        Size: 40\n"
+        Column: 1
+        Size: 14.5
+        Fill: "#131A21"
+
+// ----------------------------------------------------------- 9 · templates
+
+SlidezTwoColumns:
+    Title: "Templates are Slide subclasses"
+
+    Bullets:
+        Column: 0
+        Size: 20
+        a template is just Python inheritance
+            TitleSlide, BulletSlide, ImageSideSlide...
+            use it by class name: "TitleSlide:"
+        chrome — footers, page numbers — is a mixin
+        this deck's opener is the code on the right
+            three roles: title, subtitle, company
+
+    Code: "@register\nclass SlidezTitleSlide(TitleSlide):\n    background = \"media/bg_title.jpg\"\n\n    roles = TitleSlide.roles + (\n        \"company\",)\n    title_scale = 4.2\n    company_pos = (0.30, 0.78)\n"
+        Column: 1
+        Size: 13.5
+        Fill: "#131A21"
+
+// ------------------------------------------------------------- 10 · plugins
+
+SlidezSlide:
+    Title: "Plugins: elements from scratch"
+
+    Code: "@register\nclass Stat(Element):\n    number = \"\"\n    caption = \"\"\n\n    def render_flow(self, ctx):\n        big = ctx.get_font(\"Manrope\").with_size(46)\n        ctx.text_block([[ (self.number, True) ]],\n                       x, ctx.y, w, big, ACCENT, \"center\")\n"
+        Size: 15
+        Fill: "#131A21"
+        Width: 0.62
+
+    Bullets:
+        Position: [0.68, 0.30]
+        Width: 0.26
+        Size: 19
+        a plugin is one module imported by main.py
+        class attributes become language properties
+        render through ctx: fonts, wrapping, shapes
+        the numbers on the next slide are this exact element
+
+// -------------------------------------------------------------- 11 · stats
+
+SlidezImageRight:
+    Title: "The core, by the numbers"
+
+    Stat: "960"
+        Caption: "lines of core code"
+
+    Stat: "1"
+        Caption: "pip dependency (fpdf2)"
+
+    Stat: "9"
+        Caption: "core elements — plus your own"
+
+    Image: "media/chart.png"
+        Role: image
+        Size: [0.52]
+
+// ---------------------------------------------------------------- 12 · meta
+
+SlidezSlide:
+    Title: "This deck, in Slidez"
+
+    Bullets:
+        MarkerColor: "#61AFEF"
+        the opener and closer are one template, three roles
+        the comparison slide is two columns, one flag per element
+        every code sample is the Code element — real indentation, no escapes
+        the architecture diagram is five rects and five arrows
+        backgrounds, footer and page numbers come from a chrome mixin
+        the big numbers are a custom element, defined in ten lines
+        total: one .sldz file, one theme.py, four small images
+
+// ----------------------------------------------------------- 13 · quickstart
+
+SlidezSlide:
+    Title: "Getting started"
+
+    Code: "git clone https://github.com/e-ivkov/slidez.git\ncd slidez\npython3 -m venv .venv\n.venv/bin/pip install -r requirements.txt\n.venv/bin/python main.py presentations/slidez_deck/deck.sldz\n\"\n# then open plugins/basic.py and make it yours —\n# it is written to be forked, not configured\n"
+        Size: 15
+        Fill: "#131A21"
+        Width: 0.80
+
+    Bullets:
+        Position: [0.06, 0.80]
+        Width: 0.88
+        Size: 19
+        write deck.sldz, render, commit, diff, repeat
+        when the core lacks a feature — that is your feature to add
+
+// --------------------------------------------------------------- 14 · close
+
+SlidezTitleSlide:
+    Image: "media/logo.png"
+        Position: [0.07, 0.38]
+        Size: [0.15, 0.15]
+
+    Text: "Text in. PDF out."
+        Role: title
+        Font: Manrope
+        Bold: true
+        Size: 64
+
+    Text: "clone it, skim it, extend it"
+        Role: subtitle
+
+    Text: "github.com/e-ivkov/slidez — a compiler sized for humans and AIs"
+        Role: company
+        Color: "#9AA7B0"

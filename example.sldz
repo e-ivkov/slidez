@@ -1,0 +1,37 @@
+Slides:
+    Font: Times New Roman
+
+Slide1:
+    Font: Arial
+    
+    "some text"
+    
+    my multiline contents
+    of this text field
+    
+    Text: "some text"
+    
+    Text:
+        Contents: "some text"
+        Font: Times New Roman
+        
+    Text:
+        my multiline contents
+        of this text field
+
+    Text: "some text"
+        Position: [0.5, 0.5] 
+        AlignH: center
+        AlignV: center
+        
+    Title: "some title"
+
+    Image: "my_image.png"      // Some comment
+
+    /* Some multiline
+       comment */
+
+Slide2:
+    // Any registered class works the same way — e.g. define your own in a
+    // plugin: @register class MyText(Text): align_h = "center"
+    // MyText: "my centered text"
