@@ -333,5 +333,123 @@ class TestErrorReporting(unittest.TestCase):
         self.assertEqual(main_mod.main([path, "--check"]), 1)
 
 
+class TestLanguageEdges(unittest.TestCase):
+    """Value/text disambiguation and escape rules."""
+
+    def deck(self, src):
+        pres = parse(src, base_dir=Path("."))
+        apply_style(pres)
+        return pres
+
+    def test_numeric_bool_values_stay_text(self):
+        pres = self.deck('S:\n    Bullets:\n        Score: 100\n        Done: true')
+        self.assertEqual(pres.slides[0].contents[0].items,
+                         [(0, "Score: 100"), (0, "Done: true")])
+
+    def test_close_typo_with_structured_value_still_errors(self):
+        # 'Positon: [1, 2]' is a typo, not prose
+        with self.assertRaises(SlidezError) as cm:
+            self.deck('S:\n    Text: "x"\n        Positon: [1, 2]')
+        self.assertIn("Position", str(cm.exception))
+
+    def test_urls_in_bare_text_survive(self):
+        # '//' inside a URL is not a comment
+        pres = self.deck('S:\n    Bullets:\n        see https://github.com/e-ivkov/slidez')
+        self.assertEqual(pres.slides[0].contents[0].items,
+                         [(0, "see https://github.com/e-ivkov/slidez")])
+
+    def test_slide_inline_value_rejected(self):
+        with self.assertRaises(SlidezError) as cm:
+            self.deck('TitleSlide: "Big"')
+        self.assertIn("no inline value", str(cm.exception))
+
+    def test_string_escapes(self):
+        # \\ -> backslash, \n -> newline, unknown \x stays literal
+        pres = parse('S:\n    Text: "C:\\\\notes\\\\table.png"',
+                     base_dir=Path("."))
+        self.assertEqual(pres.slides[0].contents[0].contents, "C:\\notes\\table.png")
+        pres = parse('S:\n    Text: "a\\nb\\cx"', base_dir=Path("."))
+        self.assertEqual(pres.slides[0].contents[0].contents, "a\nb\\cx")
+
+    def test_flow_width_capped_by_column(self):
+        # an element's Width never exceeds the current flow column
+        from slidez.renderers.pdf import RenderContext
+        pres = self.deck('S:\n    Code:\n        x = 1')
+        code = pres.slides[0].contents[0]
+        ctx = RenderContext.__new__(RenderContext)
+        ctx.W = 960.0
+        ctx.flow_x, ctx.flow_w = 500.0, 406.0
+        self.assertEqual(code._flow_width(ctx), 406.0)
+
+
+class TestVerify(unittest.TestCase):
+    """main.verify: deep checks that back the --check flag."""
+
+    def deck(self, src):
+        pres = parse(src, base_dir=Path("."))
+        apply_style(pres)
+        return pres
+
+    def test_shape_without_size(self):
+        import main as main_mod
+        pres = self.deck('S:\n    Rect:\n        Position: [0.1, 0.1]')
+        with self.assertRaises(SlidezError) as cm:
+            main_mod.verify(pres)
+        self.assertIn("Rect requires Size", str(cm.exception))
+
+    def test_shape_without_position(self):
+        import main as main_mod
+        pres = self.deck('S:\n    Rect:\n        Size: [0.1, 0.1]')
+        with self.assertRaises(SlidezError):
+            main_mod.verify(pres)
+
+    def test_image_without_source(self):
+        import main as main_mod
+        pres = self.deck('S:\n    Image:')
+        with self.assertRaises(SlidezError):
+            main_mod.verify(pres)
+
+    def test_named_background_color_valid(self):
+        from slidez.ast import is_color
+        self.assertTrue(is_color("white"))
+        self.assertFalse(is_color("media/bg.jpg"))
+        pres = self.deck('S:\n    Background: white\n    Text: "x"')
+        self.assertEqual(pres.slides[0].background, "white")
+
+    def test_bad_background_hex(self):
+        import main as main_mod
+        pres = self.deck('Slides:\n    Background: "#XYZ123"\nS:\n    Text: "x"')
+        with self.assertRaises(SlidezError):
+            main_mod.verify(pres)
+
+
+class TestDeckTheme(unittest.TestCase):
+    def setUp(self):
+        import plugins.fonts  # noqa: F401  Manrope/Montserrat for the theme
+        import presentations.slidez_deck.theme  # noqa: F401
+
+    def deck(self, src):
+        pres = parse(src, base_dir=Path("."))
+        apply_style(pres)
+        return pres
+
+    def test_chrome_styles_titles(self):
+        pres = self.deck('SlidezSection:\n    Title: "S"\n\nSlidezSlide:\n    Title: "C"\n')
+        for slide in pres.slides:
+            t = slide.contents[0]
+            self.assertEqual(t.font.family, "Manrope")
+            self.assertEqual(t.font.size, 40)
+            self.assertTrue(t.bold)
+            self.assertEqual(t.color, "#F5F8FA")
+
+    def test_chrome_respects_explicit_title_props(self):
+        pres = self.deck('SlidezSlide:\n    Title: "C"\n        Font: Montserrat\n'
+                         '        Color: "#112233"\n        Size: 33\n')
+        t = pres.slides[0].contents[0]
+        self.assertEqual(t.font.family, "Montserrat")
+        self.assertEqual(t.font.size, 33)
+        self.assertEqual(t.color, "#112233")
+
+
 if __name__ == "__main__":
     unittest.main()

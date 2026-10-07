@@ -6,35 +6,10 @@ import re
 
 from fpdf import FPDF
 
-from ..ast import FONTS, SlidezError, resolve_font
+from ..ast import FONTS, SlidezError, is_color, parse_color, resolve_font
 from . import Renderer
 
 PAGE_W, PAGE_H = 960.0, 540.0
-
-NAMED_COLORS = {
-    "black": "#000000", "white": "#FFFFFF", "red": "#E53935", "green": "#43A047",
-    "blue": "#1E88E5", "yellow": "#FDD835", "orange": "#FB8C00", "purple": "#8E24AA",
-    "gray": "#9E9E9E", "grey": "#9E9E9E", "cyan": "#00ACC1", "magenta": "#D81B60",
-    "lime": "#C0CA33", "pink": "#EC407A", "brown": "#6D4C41",
-}
-
-
-def parse_color(c) -> tuple[int, int, int]:
-    if isinstance(c, (tuple, list)) and len(c) == 3:
-        return tuple(int(v) for v in c)
-    s = NAMED_COLORS.get(str(c).strip().lower(), c)
-    s = str(s).strip()
-    if not s.startswith("#"):
-        raise SlidezError(f"Invalid color '{c}' (expected '#RRGGBB' or a named color)")
-    h = s[1:]
-    if len(h) == 3:
-        h = "".join(ch * 2 for ch in h)
-    if len(h) != 6:
-        raise SlidezError(f"Invalid color '{c}' (expected '#RRGGBB' or a named color)")
-    try:
-        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-    except ValueError:
-        raise SlidezError(f"Invalid color '{c}' (bad hex digits)")
 
 
 class RenderContext:

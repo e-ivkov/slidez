@@ -30,8 +30,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m unittest discover -s tests
 ```
 
-`--check` (alias `--dry-run`) parses, applies the style cascade, and validates
-image paths and colors — catching every deck error without rendering.
+`--check` (alias `--dry-run`) parses, applies the style cascade, and
+validates shapes (missing `Size`/`Position`), image paths, backgrounds and
+colors — catching every deck error without rendering.
 
 The about-deck is the full showcase: it uses every element (shapes, code,
 images), roles, two-column and image-side templates, a chrome mixin for its
@@ -52,9 +53,16 @@ comments. Values: `"strings"` (with `\n` escapes), numbers, `true/false`,
   properties (`Font`, `Size`, `Color`, `Background` cascade to children).
 - **Inside an element**: `Key: value` sets a property (`Position`, `AlignH`,
   ...). Unknown keys are treated as verbatim text — bullet items and code
-  lines may freely contain colons. Deeper-indented bare lines keep their
-  relative indentation (4 spaces per level); `""` is an empty line.
+  lines may freely contain colons, numbers or booleans (`Score: 100`). A
+  structured value on a name close to a real property is reported as a typo
+  instead. Deeper-indented bare lines keep their relative indentation
+  (4 spaces per level); `""` is an empty line.
+- `//` comments only start at the beginning of a line or after whitespace,
+  so bare URLs (`https://...`) are safe.
+- String escapes: `\n`, `\t`, `\"` and `\\` (use `\\` in Windows paths).
 - `**bold**` spans inside text. `Position`/`Size` are in 0-1 slide units.
+- Colors: `#RRGGBB` or names (`white`, `red`, ...) — including for
+  `Background`; a non-color `Background` is an image path.
 - Errors are reported at parse time with line numbers and did-you-mean
   hints: `line 3: unknown property 'Positon' for Text — did you mean 'Position'?`
 

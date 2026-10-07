@@ -167,7 +167,13 @@ class ImageSideSlide(Slide):
         else:
             txt_x, img_x = ctx.pad_l, ctx.pad_l + text_w + self.gap
         if img:
-            w, h = img._fit(ctx, img_w, body_h)
+            # size the image on the same basis as the slot (content width)
+            px, py = ctx.image_size(img.path(ctx))
+            w = img_w
+            h = w * py / px
+            if h > body_h:
+                h = body_h
+                w = h * px / py
             img_y = body_top if self.image_align_v == "top" \
                 else body_top + (body_h - h) / 2
             ctx.image(img.path(ctx), img_x + (img_w - w) / 2, img_y, w, h)
@@ -230,7 +236,7 @@ class Code(Text):
 
     def render_flow(self, ctx):
         font = self.font
-        w = self.width * ctx.W if self.width else ctx.flow_w
+        w = self._flow_width(ctx)
         pad = self.padding if self.padding is not None else font.size * 0.6
         lines = ctx.wrap(self._runs(), w - 2 * pad, font)
         h = len(lines) * ctx.line_height(font) + (2 * pad if self.fill else 0)
@@ -244,7 +250,7 @@ class Code(Text):
 
     def height(self, ctx):
         font = self.font
-        w = self.width * ctx.W if self.width else ctx.flow_w
+        w = self._flow_width(ctx)
         pad = self.padding if self.padding is not None else font.size * 0.6
         lines = ctx.wrap(self._runs(), w - 2 * pad, font)
         return len(lines) * ctx.line_height(font) + (2 * pad if self.fill else 0) + font.size * 0.7

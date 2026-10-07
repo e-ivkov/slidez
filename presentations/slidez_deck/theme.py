@@ -15,9 +15,10 @@ FOOTER_H = 516.0
 
 
 class SlidezChrome:
-    """Footer with wordmark, accent rule and page number on every slide.
+    """Footer with wordmark, accent rule and page number on content slides.
 
     Also gives Titles their own look: Manrope bold, larger, brighter.
+    (Openers/closers use SlidezTitleSlide, which is chrome-free by design.)
     """
     background = "media/bg_content.jpg"
     footer = True
@@ -25,18 +26,22 @@ class SlidezChrome:
     title_color = "#F5F8FA"
 
     def apply_style(self, style):
-        explicit_font = {id(el): el.font for el in self.contents
-                         if isinstance(el, Title)}
+        # capture what was explicitly set BEFORE the cascade fills defaults
+        explicit = {id(el): (el.font, el.color, el.position, el.size)
+                    for el in self.contents if isinstance(el, Title)}
         super().apply_style(style)
         for el in self.contents:
-            if not (isinstance(el, Title) and el.position is None):
+            if not isinstance(el, Title):
                 continue
-            if not isinstance(explicit_font.get(id(el)), str):
+            font, color, position, size = explicit.get(id(el), (None,) * 4)
+            if position is not None:
+                continue          # user placed it absolutely — leave it alone
+            if not isinstance(font, str):
                 el.font = resolve_font("Manrope").with_size(el.font.size)
-            if el.size is None:
+            if size is None:
                 el.font = el.font.with_size(self.title_size)
             el.bold = True
-            if el.color is None:
+            if color is None:
                 el.color = self.title_color
 
     def render(self, ctx):

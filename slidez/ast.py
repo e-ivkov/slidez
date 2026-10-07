@@ -43,6 +43,37 @@ def resolve_font(name) -> "Font":
     return font
 
 
+NAMED_COLORS = {
+    "black": "#000000", "white": "#FFFFFF", "red": "#E53935", "green": "#43A047",
+    "blue": "#1E88E5", "yellow": "#FDD835", "orange": "#FB8C00", "purple": "#8E24AA",
+    "gray": "#9E9E9E", "grey": "#9E9E9E", "cyan": "#00ACC1", "magenta": "#D81B60",
+    "lime": "#C0CA33", "pink": "#EC407A", "brown": "#6D4C41",
+}
+
+
+def is_color(v) -> bool:
+    """True for values the language treats as colors (#hex or names)."""
+    return isinstance(v, str) and (v.startswith("#") or v.strip().lower() in NAMED_COLORS)
+
+
+def parse_color(c) -> tuple[int, int, int]:
+    if isinstance(c, (tuple, list)) and len(c) == 3:
+        return tuple(int(v) for v in c)
+    s = NAMED_COLORS.get(str(c).strip().lower(), c)
+    s = str(s).strip()
+    if not s.startswith("#"):
+        raise SlidezError(f"Invalid color '{c}' (expected '#RRGGBB' or a named color)")
+    h = s[1:]
+    if len(h) == 3:
+        h = "".join(ch * 2 for ch in h)
+    if len(h) != 6:
+        raise SlidezError(f"Invalid color '{c}' (expected '#RRGGBB' or a named color)")
+    try:
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        raise SlidezError(f"Invalid color '{c}' (bad hex digits)")
+
+
 def props_of(cls) -> dict[str, object]:
     """Language-settable properties of a class: public non-callable class attrs."""
     out = {}
@@ -141,6 +172,16 @@ class Element:
         """Vertical space this element needs in flow (for template layout)."""
         return 0.0
 
+    def _need(self, *props) -> None:
+        """Raise a helpful error for a missing required property."""
+        for p in props:
+            if getattr(self, p) is None:
+                line = getattr(self, "_line", None)
+                where = f"line {line}: " if line else ""
+                raise SlidezError(
+                    f"{where}{type(self).__name__} requires"
+                    f" {' and '.join(p.capitalize() for p in props)}")
+
 
 @register
 class Text(Element):
@@ -200,9 +241,14 @@ class Text(Element):
     def _runs(self):
         return bold_runs(self.contents)
 
+    def _flow_width(self, ctx) -> float:
+        """Wrap width in flow: own Width (page fraction), capped by the column."""
+        w = self.width * ctx.W if self.width else ctx.flow_w
+        return min(w, ctx.flow_w)
+
     def render_flow(self, ctx):
         font = self.font
-        w = self.width * ctx.W if self.width else ctx.flow_w
+        w = self._flow_width(ctx)
         lines = ctx.wrap(self._runs(), w, font)
         h = len(lines) * ctx.line_height(font)
         x = ctx.flow_x
@@ -241,7 +287,7 @@ class Text(Element):
 
     def height(self, ctx) -> float:
         font = self.font
-        w = self.width * ctx.W if self.width else ctx.flow_w
+        w = self._flow_width(ctx)
         lines = ctx.wrap(self._runs(), w, font)
         return len(lines) * ctx.line_height(font) + font.size * 0.7
 
@@ -315,8 +361,11 @@ class Bullets(Text):
         gap = self.item_gap or 0.0
         total = 0.0
         for level, text in self.items:
-            avail = ctx.flow_w - level * step - font.size * 0.7
-            lines = ctx.wrap(bold_runs(text), avail, font)
+            x = ctx.flow_x + level * step
+            avail = ctx.flow_w - level * step
+            mark_w = ctx.runs_width([(self._mark(level), False)], font)
+            pad = font.size * 0.35
+            lines = ctx.wrap(bold_runs(text), avail - mark_w - pad, font)
             total += len(lines) * lh + gap
         return total + font.size * 0.25
 
@@ -329,6 +378,10 @@ class Image(Element):
         self.source = value
 
     def path(self, ctx) -> Path:
+        if not self.source:
+            line = getattr(self, "_line", None)
+            where = f"line {line}: " if line else ""
+            raise SlidezError(f"{where}{type(self).__name__} requires a file path")
         p = Path(self.source)
         if not p.is_absolute():
             p = ctx.base_dir / p
@@ -336,6 +389,8 @@ class Image(Element):
             line = getattr(self, "_line", None)
             where = f"line {line}: " if line else ""
             raise SlidezError(f"{where}image not found: {p}")
+        if not p.is_file():
+            raise SlidezError(f"not a file: {p}")
         return p
 
     def _fit(self, ctx, max_w, max_h=None):
@@ -376,6 +431,7 @@ class Line(Element):
     """A line from Position to Position + Size (0-1 slide units)."""
 
     def render_abs(self, ctx):
+        self._need("size")
         x1, y1 = self.position[0] * ctx.W, self.position[1] * ctx.H
         x2 = x1 + self.size[0] * ctx.W
         y2 = y1 + self.size[1] * ctx.H
@@ -396,6 +452,7 @@ class Rect(Element):
     radius = None         # rounded corner radius, pt
 
     def render_abs(self, ctx):
+        self._need("size")
         x, y = self.position[0] * ctx.W, self.position[1] * ctx.H
         w, h = self.size[0] * ctx.W, self.size[1] * ctx.H
         ctx.fill_rect(x, y, w, h, self.color, self.radius,
@@ -406,6 +463,7 @@ class Rect(Element):
 class Ellipse(Element):
 
     def render_abs(self, ctx):
+        self._need("size")
         x, y = self.position[0] * ctx.W, self.position[1] * ctx.H
         w, h = self.size[0] * ctx.W, self.size[1] * ctx.H
         ctx.ellipse(x, y, w, h, self.color, self.border_color, self.border_width)
@@ -418,6 +476,7 @@ class Arrow(Element):
 
     def render_abs(self, ctx):
         import math
+        self._need("size")
         x1, y1 = self.position[0] * ctx.W, self.position[1] * ctx.H
         x2 = x1 + self.size[0] * ctx.W
         y2 = y1 + self.size[1] * ctx.H
@@ -474,8 +533,8 @@ class Slide:
     def _draw_background(self, ctx):
         if not self.background:
             return
-        bg = str(self.background)
-        if bg.startswith("#"):
+        bg = self.background
+        if is_color(bg):
             ctx.fill_rect(0, 0, ctx.W, ctx.H, bg)
         else:  # image path, relative to the .sldz file
             p = Path(bg)
@@ -494,6 +553,10 @@ class Presentation:
         self.base_dir = Path(base_dir)
 
     def apply_style(self):
+        if not FONTS:
+            raise SlidezError(
+                "no fonts registered — import a font plugin first"
+                " (e.g. `import plugins.fonts` in main.py)")
         fallback_font = "Default" if "default" in FONTS else next(iter(FONTS.values())).family
         style = {"font": fallback_font, "size": None, "color": None, "background": None}
         style.update(self.style)

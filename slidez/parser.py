@@ -122,7 +122,10 @@ def _strip_comments(src: str) -> list[str]:
             elif c == '"':
                 in_str = True
                 i += 1
-            elif c == "/" and i + 1 < len(chars) and chars[i + 1] == "/":
+            elif c == "/" and i + 1 < len(chars) and chars[i + 1] == "/" and \
+                    (i == 0 or chars[i - 1].isspace()):
+                # // starts a comment only at line start or after whitespace,
+                # so URLs in bare text (https://...) survive
                 chars[i:] = [" "] * (len(chars) - i)
                 break
             elif c == "/" and i + 1 < len(chars) and chars[i + 1] == "*":
@@ -158,6 +161,31 @@ def _split_key(text: str, lineno: int):
     return None, text
 
 
+def _unescape(s: str) -> str:
+    """Process \\n, \\t, \\" and \\\\ left to right; other backslashes stay."""
+    out = []
+    i = 0
+    while i < len(s):
+        c = s[i]
+        if c == "\\" and i + 1 < len(s):
+            nxt = s[i + 1]
+            if nxt == "n":
+                out.append("\n")
+                i += 2
+                continue
+            if nxt == "t":
+                out.append("\t")
+                i += 2
+                continue
+            if nxt in ('"', "\\"):
+                out.append(nxt)
+                i += 2
+                continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
 def _parse_value(s: str, lineno: int):
     s = s.strip()
     if not s:
@@ -177,7 +205,7 @@ def _parse_value(s: str, lineno: int):
             raise SlidezError(f"Unterminated string (line {lineno}): {s[:40]}")
         if s[end + 1:].strip():
             return s   # e.g. `"//" for lines` — keep verbatim
-        return s[1:end].replace("\\n", "\n").replace('\\"', '"').replace("\\t", "\t")
+        return _unescape(s[1:end])
     if s.startswith("["):
         if "]" not in s:
             raise SlidezError(f"Unclosed list (line {lineno}): {s[:40]}")
@@ -204,7 +232,7 @@ def _parse_value(s: str, lineno: int):
 
 def _unquote_bare(text: str):
     if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
-        return text[1:-1]
+        return _unescape(text[1:-1])
     return text
 
 
@@ -276,6 +304,10 @@ def _bind(root_nodes, base_dir) -> Presentation:
         if cls is not None and not issubclass(cls, Slide):
             raise SlidezError(
                 f"'{node.key}' is an element, not a slide template (line {node.line})")
+        if node.value is not None:
+            raise SlidezError(
+                f"line {node.line}: slides take no inline value"
+                f" — put content on indented lines below '{node.key}:'")
         slide = (cls or Slide)(name=node.key)
         slide._line = node.line
         _bind_children(slide, node)
@@ -331,17 +363,19 @@ def _bind_children(target, node):
                 el.set_inline(c.value)
             _bind_children(el, c)
             target.contents.append(el)
-        elif not is_slide and isinstance(c.value, str) or \
-                (not is_slide and c.value is None and not c.children):
-            # Inside an element, unknown keys with plain-text values are
-            # verbatim content (e.g. 'ON orders(customer_id);')
+        elif not is_slide:
+            # Inside an element, unknown keys are verbatim content (prose
+            # and code with colons — any value type). Exception: a
+            # structured value on a name that closely matches a real
+            # property is almost certainly a typo, so fail loudly.
+            if not isinstance(c.value, str) and _suggest(
+                    c.key, [_pascal(p) for p in props]):
+                raise SlidezError(
+                    f"line {c.line}: unknown property '{c.key}' for"
+                    f" {type(target).__name__}{_suggest(c.key, [_pascal(p) for p in props])}")
             c.value = c.raw if c.value is not None else c.key + ":"
             c.key = None
             target.add_bare(c)
-        elif not is_slide:
-            raise SlidezError(
-                f"line {c.line}: unknown property '{c.key}' for"
-                f" {type(target).__name__}{_suggest(c.key, [_pascal(p) for p in props])}")
         elif c.value is None and not c.children:
             # Slide-level 'Heap:' — bare text that matches a key name
             c.key, c.value = None, c.raw
