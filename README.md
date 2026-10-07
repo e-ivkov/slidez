@@ -125,6 +125,8 @@ tests/                  parser/style unittests
 
 `fonts/` bundles Manrope, Montserrat, Liberation and DejaVu files under their
 respective licenses (OFL / Bitstream Vera) — see `fonts/LICENSES.md`.
+**[fonts/README.md](fonts/README.md)** explains how to use a font from your
+machine, add your own, and turn variable fonts into static weights.
 
 ## License
 

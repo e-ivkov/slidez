@@ -34,6 +34,9 @@ register_font(Font(("My Font", "MyFont"),          # name + aliases
 Use in a deck: `Font: My Font`. Case-insensitive; aliases resolve too.
 The renderer preloads every registered family automatically.
 
+Machine fonts (absolute paths), variable-font instantiation and bundling
+rules are covered in **[fonts/README.md](../fonts/README.md)**.
+
 ## 2. Elements
 
 ### 2a. The one-liner: defaults via inheritance
