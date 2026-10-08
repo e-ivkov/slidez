@@ -60,6 +60,9 @@ comments. Values: `"strings"` (with `\n` escapes), numbers, `true/false`,
 - `//` comments only start at the beginning of a line or after whitespace,
   so bare URLs (`https://...`) are safe.
 - String escapes: `\n`, `\t`, `\"` and `\\` (use `\\` in Windows paths).
+- Backticks for verbatim: `` `C:\new\table.png` `` values (nothing is
+  escaped or parsed) and ` ``` ` fenced blocks for multi-line content —
+  code, deck-source samples, anything. Inside a fence no line is parsed.
 - `**bold**` spans inside text. `Position`/`Size` are in 0-1 slide units.
 - Colors: `#RRGGBB` or names (`white`, `red`, ...) — including for
   `Background`; a non-color `Background` is an image path.
@@ -71,7 +74,7 @@ Core elements (`slidez/ast.py`): `Text`, `Title`, `Bullets`, `Image`, `Line`,
 `Width`, `AlignH`, `AlignV`, `Color`, `BorderColor`, `BorderWidth`, `Column`,
 `Role` (tag an element for a template, e.g. `Role: title`, `Role: image`).
 
-Code blocks don't need escaped strings — just indent them:
+Code blocks don't need escaped strings — just indent them, or fence them:
 
 ```
 Slide:
@@ -79,9 +82,10 @@ Slide:
         def render_flow(self, ctx):
             ctx.text_block(lines, x, y, w,
                            font, color)
-        ""
-        -- "" writes an empty line
 ```
+
+For code that itself looks like deck source (`Font:`, `Size:` at line
+starts), use a fence — content between the ` ``` ` lines is verbatim.
 
 ## Plugins (templates, elements, fonts)
 

@@ -93,14 +93,30 @@ class Node:
         self.children = []
 
 
-def _strip_comments(src: str) -> list[str]:
-    """Replace // and /* */ comments with spaces, honoring double quotes."""
-    out_lines = []
+def _strip_comments(src: str) -> list[tuple[str, bool, int]]:
+    """Strip // and /* */ comments; pass ``` fenced blocks through verbatim.
+
+    Returns (line, verbatim, fence_indent) triples. Double quotes and
+    backticks protect their contents from comment markers; backtick
+    imbalance on a line is tolerated (prose may mention ` or ```).
+    """
+    out = []
     in_block = False
     block_start = 0
+    in_fence = False
+    fence_indent = 0
+    fence_start = 0
     for lineno, raw in enumerate(src.splitlines(), 1):
+        if in_fence:
+            if raw.strip() == "```":
+                in_fence = False
+                out.append(("", False, 0))   # fence line acts as a blank
+            else:
+                out.append((raw, True, fence_indent))
+            continue
         chars = list(raw)
-        in_str = False
+        in_dq = False
+        in_bt = False
         i = 0
         while i < len(chars):
             c = chars[i]
@@ -112,15 +128,22 @@ def _strip_comments(src: str) -> list[str]:
                     continue
                 chars[i] = " "
                 i += 1
-            elif in_str:
+            elif in_dq:
                 if c == "\\" and i + 1 < len(chars):
                     i += 2   # escaped char (\n, \", \t) — not a string end
                     continue
                 if c == '"':
-                    in_str = False
+                    in_dq = False
+                i += 1
+            elif in_bt:
+                if c == "`":
+                    in_bt = False
                 i += 1
             elif c == '"':
-                in_str = True
+                in_dq = True
+                i += 1
+            elif c == "`":
+                in_bt = True
                 i += 1
             elif c == "/" and i + 1 < len(chars) and chars[i + 1] == "/" and \
                     (i == 0 or chars[i - 1].isspace()):
@@ -135,25 +158,37 @@ def _strip_comments(src: str) -> list[str]:
                 i += 2
             else:
                 i += 1
-        if in_str:
+        if in_dq:
             raise SlidezError(f"Unterminated string (line {lineno})")
-        out_lines.append("".join(chars))
+        cleaned = "".join(chars)
+        if cleaned.strip() == "```":
+            in_fence = True
+            fence_indent = len(raw) - len(raw.lstrip(" "))
+            fence_start = lineno
+            out.append(("", False, 0))       # opening fence acts as a blank
+        else:
+            out.append((cleaned, False, 0))
     if in_block:
         raise SlidezError(f"Unclosed /* comment (starts at line {block_start})")
-    return out_lines
+    if in_fence:
+        raise SlidezError(f"Unclosed ``` fence (starts at line {fence_start})")
+    return out
 
 
 def _split_key(text: str, lineno: int):
     """Return (key, value_str) for 'Key: value' lines, or (None, text) for bare.
 
     Lines whose prefix before ':' is not an identifier (e.g. Russian text,
-    URLs) are bare text.
+    URLs) are bare text. Colons inside "..." or `...` never split.
     """
-    in_str = False
+    in_dq = False
+    in_bt = False
     for i, c in enumerate(text):
         if c == '"' and (i == 0 or text[i - 1] != "\\"):
-            in_str = not in_str
-        elif c == ":" and not in_str:
+            in_dq = not in_dq
+        elif c == "`":
+            in_bt = not in_bt
+        elif c == ":" and not in_dq and not in_bt:
             key = text[:i].strip()
             if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
                 return key, text[i + 1:].strip()
@@ -190,6 +225,14 @@ def _parse_value(s: str, lineno: int):
     s = s.strip()
     if not s:
         return None
+    if s.startswith("`"):
+        # backtick values are fully verbatim: no escapes, no comment marks
+        end = s.find("`", 1)
+        if end == -1:
+            raise SlidezError(f"Unterminated ` value (line {lineno}): {s[:40]}")
+        if s[end + 1:].strip():
+            return s   # backticked fragment inside bare words — keep verbatim
+        return s[1:end]
     if s.startswith('"'):
         # a fully quoted string, or a quoted fragment inside bare words
         i, end = 1, None
@@ -233,6 +276,9 @@ def _parse_value(s: str, lineno: int):
 def _unquote_bare(text: str):
     if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
         return _unescape(text[1:-1])
+    if len(text) >= 2 and text[0] == "`" and text[-1] == "`" \
+            and "`" not in text[1:-1]:
+        return text[1:-1]
     return text
 
 
@@ -242,9 +288,16 @@ def _to_snake(key: str) -> str:
 
 def parse(source: str, base_dir) -> Presentation:
     """Parse .sldz source into a bound Presentation."""
-    lines = []   # (indent, text, lineno, group)
+    lines = []   # (indent, text, lineno, group, verbatim)
     group = 0
-    for lineno, raw in enumerate(_strip_comments(source), 1):
+    for lineno, (raw, verbatim, fence_indent) in enumerate(_strip_comments(source), 1):
+        if verbatim:
+            # fenced line: the fence's own indent is structural position,
+            # any deeper indentation is content — kept verbatim
+            lead = len(raw) - len(raw.lstrip(" "))
+            text = raw[fence_indent:] if lead >= fence_indent else raw
+            lines.append((fence_indent, text, lineno, group, True))
+            continue
         if not raw.strip():
             group += 1
             continue
@@ -253,7 +306,7 @@ def parse(source: str, base_dir) -> Presentation:
         if "\t" in indent_str:
             raise SlidezError(f"Tabs are not allowed for indentation (line {lineno})")
         indent = len(indent_str)
-        lines.append((indent, stripped.strip(), lineno, group))
+        lines.append((indent, stripped.strip(), lineno, group, False))
 
     root, _ = _parse_nodes(lines, 0, 0)
     return _bind(root, base_dir)
@@ -262,17 +315,20 @@ def parse(source: str, base_dir) -> Presentation:
 def _parse_nodes(lines, i, base_indent):
     nodes = []
     while i < len(lines):
-        indent, text, lineno, group = lines[i]
+        indent, text, lineno, group, verbatim = lines[i]
         if indent < base_indent:
             break
         if indent > base_indent:
             raise SlidezError(f"Unexpected indent at line {lineno}")
-        node = Node(None, None, indent, lineno, group, text)
-        node.key, value_str = _split_key(text, lineno)
-        if node.key is None:
-            node.value = _unquote_bare(text)
+        if verbatim:
+            node = Node(None, text, indent, lineno, group, text)
         else:
-            node.value = _parse_value(value_str, lineno)
+            node = Node(None, None, indent, lineno, group, text)
+            node.key, value_str = _split_key(text, lineno)
+            if node.key is None:
+                node.value = _unquote_bare(text)
+            else:
+                node.value = _parse_value(value_str, lineno)
         nodes.append(node)
         i += 1
         if i < len(lines) and lines[i][0] > indent:
@@ -365,10 +421,10 @@ def _bind_children(target, node):
             target.contents.append(el)
         elif not is_slide:
             # Inside an element, unknown keys are verbatim content (prose
-            # and code with colons — any value type). Exception: a
-            # structured value on a name that closely matches a real
-            # property is almost certainly a typo, so fail loudly.
-            if not isinstance(c.value, str) and _suggest(
+            # and code with colons — any value type). Exception: a list
+            # value on a name that closely matches a real property is
+            # almost certainly a typo, so fail loudly.
+            if isinstance(c.value, (list, tuple)) and _suggest(
                     c.key, [_pascal(p) for p in props]):
                 raise SlidezError(
                     f"line {c.line}: unknown property '{c.key}' for"

@@ -363,6 +363,61 @@ class TestLanguageEdges(unittest.TestCase):
             self.deck('TitleSlide: "Big"')
         self.assertIn("no inline value", str(cm.exception))
 
+    def test_deck_source_snippet_in_code(self):
+        # key-looking lines nested under a bare anchor are verbatim content
+        pres = parse('S:\n    Code:\n        Slides:\n            Font: Manrope\n'
+                     '        MySlide:\n            Color: "#E8ECEF"\n'
+                     '        Text: plain item', base_dir=Path("."))
+        self.assertEqual(
+            pres.slides[0].contents[0].contents,
+            'Slides:\n    Font: Manrope\nMySlide:\n    Color: "#E8ECEF"\nText: plain item')
+
+    def test_fenced_block_verbatim(self):
+        # ``` fences: raw content, nothing parsed, indentation kept
+        src = ('S:\n    Code:\n        Size: 14\n        ```\n'
+               '        Slides:\n            Font: Manrope\n'
+               '        # not a comment\n'
+               '        \n'
+               '            deeper: [1, 2]\n        ```\n')
+        pres = parse(src, base_dir=Path("."))
+        self.assertEqual(pres.slides[0].contents[0].contents,
+                         "Slides:\n    Font: Manrope\n# not a comment\n\n    deeper: [1, 2]")
+        self.assertEqual(pres.slides[0].contents[0].size, 14)
+
+    def test_fence_nested_under_element(self):
+        pres = parse('S:\n    Text:\n        ```\n        Font: not a property\n        ```\n',
+                     base_dir=Path("."))
+        self.assertEqual(pres.slides[0].contents[0].contents, "Font: not a property")
+
+    def test_fenced_bullets_items(self):
+        src = 'S:\n    Bullets:\n        ```\n        Position: [0, 0]\n        literal\n        ```\n'
+        pres = parse(src, base_dir=Path("."))
+        self.assertEqual(pres.slides[0].contents[0].items,
+                         [(0, "Position: [0, 0]"), (0, "literal")])
+
+    def test_unterminated_fence(self):
+        with self.assertRaises(SlidezError) as cm:
+            parse('S:\n    Code:\n        ```\n        oops\n', base_dir=Path("."))
+        self.assertIn("Unclosed ``` fence", str(cm.exception))
+        self.assertIn("line 3", str(cm.exception))
+
+    def test_backtick_value_verbatim(self):
+        # no escapes, no comment markers: everything literal
+        pres = parse('S:\n    Text: `C:\\new\\table.png // "x"`', base_dir=Path("."))
+        self.assertEqual(pres.slides[0].contents[0].contents,
+                         'C:\\new\\table.png // "x"')
+
+    def test_backtick_value_unterminated(self):
+        with self.assertRaises(SlidezError) as cm:
+            parse('S:\n    Text: `oops\n', base_dir=Path("."))
+        self.assertIn("Unterminated ` value", str(cm.exception))
+
+    def test_backticks_in_prose_are_literal(self):
+        pres = parse('S:\n    Bullets:\n        use ``` fences freely\n'
+                     '        inline `code` too', base_dir=Path("."))
+        self.assertEqual(pres.slides[0].contents[0].items,
+                         [(0, "use ``` fences freely"), (0, "inline `code` too")])
+
     def test_string_escapes(self):
         # \\ -> backslash, \n -> newline, unknown \x stays literal
         pres = parse('S:\n    Text: "C:\\\\notes\\\\table.png"',

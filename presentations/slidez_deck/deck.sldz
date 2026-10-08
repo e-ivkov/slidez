@@ -80,6 +80,8 @@ SlidezTwoColumns:
         indentation is the structure
         bare lines are text; deeper lines nest
         comments: "//" for lines, "/* */" for blocks
+        whole snippets: quoted strings with \n escapes
+        or ``` fences — verbatim, nothing parsed inside
 
     Code: "Slides:\n    Font: Manrope\n\nWhySlide:\n    Title: Why Slidez\n    Bullets:\n        one text file in\n        one portable PDF out\n            opens anywhere\n"
         Column: 1
@@ -296,10 +298,22 @@ SlidezTwoColumns:
         fonts resolve by name from the registry
             Manrope, Montserrat, Liberation, Mono — or yours
 
-    Code: "Slides:\n    Font: Manrope\n    Size: 24\n\nMySlide:\n    Color: \"#E8ECEF\"   # slide-level\n\n    Text: inherits everything\n    Text: except what it sets\n        Size: 40\n"
+    Code:
         Column: 1
         Size: 14.5
         Fill: "#131A21"
+        ```
+        Slides:
+            Font: Manrope
+            Size: 24
+
+        MySlide:
+            Color: "#E8ECEF"   # slide-level
+
+            Text: inherits everything
+            Text: except what it sets
+                Size: 40
+        ```
 
 // ----------------------------------------------------------- 9 · templates
 
@@ -316,20 +330,37 @@ SlidezTwoColumns:
         this deck's opener is the code on the right
             three roles: title, subtitle, company
 
-    Code: "@register\nclass SlidezTitleSlide(TitleSlide):\n    background = \"media/bg_title.jpg\"\n\n    roles = TitleSlide.roles + (\n        \"company\",)\n    title_scale = 4.2\n    company_pos = (0.30, 0.78)\n"
+    Code:
         Column: 1
         Size: 13.5
         Fill: "#131A21"
+        @register
+        class SlidezTitleSlide(TitleSlide):
+            background = "media/bg_title.jpg"
+        ""
+        roles = TitleSlide.roles + (
+            "company",)
+        title_scale = 4.2
+        company_pos = (0.30, 0.78)
 
 // ------------------------------------------------------------- 10 · plugins
 
 SlidezSlide:
     Title: "Plugins: elements from scratch"
 
-    Code: "@register\nclass Stat(Element):\n    number = \"\"\n    caption = \"\"\n\n    def render_flow(self, ctx):\n        big = ctx.get_font(\"Manrope\").with_size(46)\n        ctx.text_block([[ (self.number, True) ]],\n                       x, ctx.y, w, big, ACCENT, \"center\")\n"
+    Code:
         Size: 15
         Fill: "#131A21"
         Width: 0.62
+        @register
+        class Stat(Element):
+            number = ""
+            caption = ""
+        ""
+        def render_flow(self, ctx):
+            big = ctx.get_font("Manrope").with_size(46)
+            ctx.text_block([[ (self.number, True) ]],
+                           x, ctx.y, w, big, ACCENT, "center")
 
     Bullets:
         Position: [0.68, 0.30]
@@ -378,10 +409,18 @@ SlidezSlide:
 SlidezSlide:
     Title: "Getting started"
 
-    Code: "git clone https://github.com/e-ivkov/slidez.git\ncd slidez\npython3 -m venv .venv\n.venv/bin/pip install -r requirements.txt\n.venv/bin/python main.py presentations/slidez_deck/deck.sldz\n\"\n# then open plugins/basic.py and make it yours —\n# it is written to be forked, not configured\n"
+    Code:
         Size: 15
         Fill: "#131A21"
         Width: 0.80
+        git clone https://github.com/e-ivkov/slidez.git
+        cd slidez
+        python3 -m venv .venv
+        .venv/bin/pip install -r requirements.txt
+        .venv/bin/python main.py presentations/slidez_deck/deck.sldz
+        ""
+        # then open plugins/basic.py and make it yours —
+        # it is written to be forked, not configured
 
     Bullets:
         Position: [0.06, 0.80]

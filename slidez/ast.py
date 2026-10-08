@@ -183,6 +183,18 @@ class Element:
                     f" {' and '.join(p.capitalize() for p in props)}")
 
 
+def _flat_lines(node, level=0):
+    """Flatten a bare node subtree to text lines, keeping relative indent.
+
+    Deeper lines are verbatim content whether or not they parse as
+    'Key: value' — code snippets often look like deck source.
+    """
+    text = node.value if node.key is None else node.raw
+    yield "    " * level + (text or "")
+    for child in node.children:
+        yield from _flat_lines(child, level + 1)
+
+
 @register
 class Text(Element):
     contents = ""
@@ -200,10 +212,7 @@ class Text(Element):
     def add_bare(self, node, level=0):
         # deeper-indented bare lines keep their relative indentation
         # (4 spaces per level; "" is an empty line)
-        self._lines.append("    " * level + node.value)
-        for child in node.children:
-            if child.key is None:
-                self.add_bare(child, level + 1)
+        self._lines.extend(_flat_lines(node, level))
 
     def finalize(self):
         lines = getattr(self, "_lines", None)
