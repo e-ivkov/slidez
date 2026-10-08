@@ -63,6 +63,8 @@ comments. Values: `"strings"` (with `\n` escapes), numbers, `true/false`,
 - Backticks for verbatim: `` `C:\new\table.png` `` values (nothing is
   escaped or parsed) and ` ``` ` fenced blocks for multi-line content —
   code, deck-source samples, anything. Inside a fence no line is parsed.
+- Rule of thumb: plain prose and simple code need no quoting — the parser
+  disambiguates (URLs, colons in text). When in doubt, backtick it.
 - `**bold**` spans inside text. `Position`/`Size` are in 0-1 slide units.
 - Colors: `#RRGGBB` or names (`white`, `red`, ...) — including for
   `Background`; a non-color `Background` is an image path.

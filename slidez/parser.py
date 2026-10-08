@@ -5,10 +5,18 @@ Grammar (indentation-based, 1 level = any wider indent than the parent):
     presentation := node*                     (top level: `Slides:` + slides)
     node        := bare_line | key [":" value] [child_block]
     bare_line   := text | "quoted text"       (grouped into elements at bind time)
-    value       := "string" | number | true/false | [a, b] | bare words
+    value       := "string" | `verbatim` | number | true/false | [a, b] | bare words
     comment     := // line   /* block */
+    fence       := ``` ... ```                (multi-line, fully verbatim)
 
 Errors are SlidezError with line numbers and suggestions where possible.
+
+Heuristics policy: plaintext should just work for prose and simple code —
+that is the point of the language. The few disambiguation heuristics below
+(`//` after whitespace only, quoted fragments inside bare words, verbatim
+nested key lines, a typo guard for list values) exist so it does, and each
+is locked by tests. When something new is ambiguous, do NOT add another
+heuristic — point users at backticks or fences, which are always literal.
 """
 
 from __future__ import annotations
