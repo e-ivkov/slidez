@@ -32,7 +32,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 `--check` (alias `--dry-run`) parses, applies the style cascade, and
 validates shapes (missing `Size`/`Position`), image paths, backgrounds and
-colors — catching every deck error without rendering.
+colors — catching every deck error without rendering. Out-of-range
+`Position`/`Size`/`Width` values (outside 0-1 slide units) are reported
+as warnings; the deck still compiles and renders.
 
 The about-deck is the full showcase: it uses every element (shapes, code,
 images), roles, two-column and image-side templates, a chrome mixin for its
@@ -67,7 +69,8 @@ comments. Values: `"strings"` (with `\n` escapes), numbers, `true/false`,
   disambiguates (URLs, colons in text). When in doubt, backtick it.
 - `**bold**` spans inside text. `Position`/`Size` are in 0-1 slide units.
 - Colors: `#RRGGBB` or names (`white`, `red`, ...) — including for
-  `Background`; a non-color `Background` is an image path.
+  `Background`; a non-color `Background` is an image path. RGB lists
+  (`Color: [255, 0, 0]`) are accepted too.
 - Errors are reported at parse time with line numbers and did-you-mean
   hints: `line 3: unknown property 'Positon' for Text — did you mean 'Position'?`
 

@@ -268,7 +268,7 @@ class TestErrorReporting(unittest.TestCase):
 
     def test_bad_text_size(self):
         self.assertErr('S:\n    Text: "x"\n        Size: big',
-                       "line 3", "'size' expects a number")
+                       "line 3", "'size' expects a positive number")
 
     def test_bad_bool(self):
         self.assertErr('S:\n    Text: "x"\n        Bold: yes',
@@ -472,10 +472,50 @@ class TestVerify(unittest.TestCase):
         self.assertEqual(pres.slides[0].background, "white")
 
     def test_bad_background_hex(self):
-        import main as main_mod
-        pres = self.deck('Slides:\n    Background: "#XYZ123"\nS:\n    Text: "x"')
+        # caught at parse time now, with a line number
+        with self.assertRaises(SlidezError) as cm:
+            self.deck('Slides:\n    Background: "#XYZ123"\nS:\n    Text: "x"')
+        self.assertIn("line 2", str(cm.exception))
+        self.assertIn("color", str(cm.exception))
         with self.assertRaises(SlidezError):
-            main_mod.verify(pres)
+            self.deck('S:\n    Background: "#XYZ123"\n    Text: "x"')
+
+    def test_out_of_range_values_warn_not_reject(self):
+        import main as main_mod
+        pres = self.deck('S:\n    Rect:\n        Position: [1.5, -3]\n'
+                         '        Size: [0.5, 0.3]\n    Image: "my_image.png"\n'
+                         '        Size: [10]\n    Text: "t"\n        Width: 2\n')
+        main_mod.verify(pres)                       # no exception
+        msgs = "\n".join(pres.warnings)
+        self.assertIn("Rect", msgs)
+        self.assertIn("Position", msgs)
+        self.assertIn("Image", msgs)
+        self.assertIn("Text", msgs)
+        self.assertIn("Width", msgs)
+        for w in pres.warnings:
+            self.assertRegex(w, r"line \d+")
+
+    def test_in_range_values_no_warnings(self):
+        import main as main_mod
+        pres = self.deck('S:\n    Rect:\n        Position: [0.1, 0.1]\n'
+                         '        Size: [0.5, 0.3]\n    Text: "t"\n        Width: 0.8\n')
+        main_mod.verify(pres)
+        self.assertEqual(pres.warnings, [])
+
+    def test_cli_prints_warning_and_renders(self):
+        import io
+        import tempfile
+        from contextlib import redirect_stderr
+        import main as main_mod
+        with tempfile.NamedTemporaryFile("w", suffix=".sldz", delete=False) as f:
+            f.write('S:\n    Rect:\n        Position: [1.5, 0.1]\n        Size: [0.2, 0.2]\n')
+            path = f.name
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            code = main_mod.main([path, "--check"])
+        self.assertEqual(code, 0)
+        self.assertIn("warning", buf.getvalue())
+        self.assertIn("off-slide", buf.getvalue())
 
 
 class TestDeckTheme(unittest.TestCase):
@@ -504,6 +544,138 @@ class TestDeckTheme(unittest.TestCase):
         self.assertEqual(t.font.family, "Montserrat")
         self.assertEqual(t.font.size, 33)
         self.assertEqual(t.color, "#112233")
+
+
+class TestMalformedDecks(unittest.TestCase):
+    """Malformed values must fail as clean SlidezErrors, never tracebacks."""
+
+    def setUp(self):
+        import plugins.fonts  # noqa: F401
+        import presentations.slidez_deck.theme  # noqa: F401  Stat element
+
+    def assertClean(self, src):
+        """Parse+style+verify must raise only SlidezError (or succeed)."""
+        try:
+            pres = parse(src, base_dir=Path("."))
+            apply_style(pres)
+            import main as main_mod
+            main_mod.verify(pres)
+        except SlidezError:
+            pass
+
+    def test_non_string_inline_values(self):
+        for src in ('S:\n    Text: 100\n',
+                    'S:\n    Text: true\n',
+                    'S:\n    Code: 5\n        x = 1\n',
+                    'S:\n    Title: [a, b]\n',
+                    'S:\n    Image: 5\n',
+                    'S:\n    Image: [a, b]\n',
+                    'S:\n    Stat: [1, 2]\n'):
+            with self.subTest(src=src):
+                self.assertClean(src)
+
+    def test_non_string_string_props(self):
+        for src in ('S:\n    Text:\n        Contents: 5\n',
+                    'S:\n    Bullets:\n        x\n        Marker: 5\n',
+                    'S:\n    Image:\n        Source: 5\n',
+                    'S:\n    Stat: "1"\n        Caption: 5\n'):
+            with self.subTest(src=src):
+                self.assertClean(src)
+
+    def test_non_string_inline_has_line(self):
+        msg = None
+        try:
+            apply_style(parse('S:\n    Text: 100\n', base_dir=Path(".")))
+        except SlidezError as e:
+            msg = str(e)
+        self.assertIsNotNone(msg)
+        self.assertIn("line 2", msg)
+        self.assertIn("Text", msg)
+
+    def test_slides_style_values_validated(self):
+        for src in ('Slides:\n    Size: big\nS:\n    Text: "x"\n',
+                    'Slides:\n    Size: 0\nS:\n    Text: "x"\n',
+                    'Slides:\n    Background: [1, 2]\nS:\n    Text: "x"\n',
+                    'Slides:\n    Font: [a, b]\nS:\n    Text: "x"\n',
+                    'Slides:\n    Background: "#XYZ123"\nS:\n    Text: "x"\n',
+                    'S:\n    Background: [1, 2]\n    Text: "x"\n'):
+            with self.subTest(src=src):
+                self.assertClean(src)
+
+    def test_non_finite_numbers_rejected(self):
+        for src in ('S:\n    Text: "x"\n        Size: nan\n',
+                    'S:\n    Text: "x"\n        Size: inf\n',
+                    'S:\n    Text: "x"\n        Position: [nan, 0.5]\n',
+                    'S:\n    Rect:\n        Position: [0.1, 0.1]\n        Size: [1e999, 0.2]\n',
+                    'S:\n    Text: "x"\n        Width: nan\n'):
+            with self.subTest(src=src):
+                with self.assertRaises(SlidezError):
+                    apply_style(parse(src, base_dir=Path(".")))
+
+    def test_bad_rgb_list_color(self):
+        self.assertClean('S:\n    Text: "x"\n        Color: [1, "emoji", 2]\n')
+        # a valid RGB list still works
+        pres = parse('S:\n    Text: "x"\n        Color: [255, 0, 0]\n', base_dir=Path("."))
+        apply_style(pres)
+        self.assertEqual(pres.slides[0].contents[0].color, (255, 0, 0))
+
+    def test_negative_dash_rejected(self):
+        for src in ('S:\n    Line:\n        Position: [0.1, 0.1]\n        Size: [0.5, 0]\n        Dash: [-1, 2]\n',
+                    'S:\n    Line:\n        Position: [0.1, 0.1]\n        Size: [0.5, 0]\n        Dash: [-3]\n'):
+            with self.subTest(src=src):
+                with self.assertRaises(SlidezError):
+                    apply_style(parse(src, base_dir=Path(".")))
+
+    def test_negative_positions_still_allowed(self):
+        pres = parse('S:\n    Text: "x"\n        Position: [-0.1, 0.5]\n', base_dir=Path("."))
+        apply_style(pres)
+        self.assertEqual(pres.slides[0].contents[0].position, (-0.1, 0.5))
+
+    def test_negative_widths_rejected(self):
+        for src in ('S:\n    Rect:\n        Position: [0.1, 0.1]\n        Size: [0.5, 0.3]\n'
+                    '        BorderColor: red\n        BorderWidth: -3\n',
+                    'S:\n    Rect:\n        Position: [0.1, 0.1]\n        Size: [0.5, 0.3]\n        Radius: -5\n'):
+            with self.subTest(src=src):
+                with self.assertRaises(SlidezError):
+                    apply_style(parse(src, base_dir=Path(".")))
+
+    def test_bom_tolerated(self):
+        pres = parse('﻿S:\n    Text: "x"\n', base_dir=Path("."))
+        apply_style(pres)
+        self.assertEqual(len(pres.slides), 1)
+
+    def test_deep_nesting_clean_error(self):
+        deep = "S:\n" + "".join(" " * (4 + i) + "x\n" for i in range(3000))
+        with self.assertRaises(SlidezError) as cm:
+            parse(deep, base_dir=Path("."))
+        self.assertIn("nested", str(cm.exception))
+
+    def test_bullets_keep_nested_key_lines(self):
+        # consistent with Text: nested 'Key: value' is content, not dropped
+        pres = parse('S:\n    Bullets:\n        item\n            Key: value\n',
+                     base_dir=Path("."))
+        self.assertEqual(pres.slides[0].contents[0].items,
+                         [(0, "item"), (1, "Key: value")])
+
+    def test_zero_size_code_with_fill_renders(self):
+        # Code + Fill + Size: 0 used to crash fpdf (rounded rect, zero height)
+        import tempfile
+        import main as main_mod
+        from slidez.renderers.pdf import PDFRenderer
+        pres = parse('S:\n    Code:\n        Size: 20\n        Fill: "#EEEEEE"\n        x = 1\n',
+                     base_dir=Path("."))
+        apply_style(pres)
+        with tempfile.NamedTemporaryFile(suffix=".pdf") as f:
+            PDFRenderer().render(pres, f.name)
+
+    def test_zero_height_rect_with_radius_renders(self):
+        import tempfile
+        from slidez.renderers.pdf import PDFRenderer
+        pres = parse('S:\n    Rect:\n        Position: [0.1, 0.1]\n        Size: [0.5, 0]\n        Radius: 6\n',
+                     base_dir=Path("."))
+        apply_style(pres)
+        with tempfile.NamedTemporaryFile(suffix=".pdf") as f:
+            PDFRenderer().render(pres, f.name)
 
 
 if __name__ == "__main__":

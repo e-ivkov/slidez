@@ -107,7 +107,10 @@ class KeyValue(Text):
 
 `set_inline` handles `MyThing: "value"`, `add_bare` handles child lines,
 `finalize()` runs exactly once when the element's block closes — join or
-validate your collected lines there (see `Text.finalize`).
+validate your collected lines there (see `Text.finalize`). Inline values
+arrive already parsed (numbers, booleans, lists stay their own types);
+call `self._inline_text(value)` to require a string with a clean
+line-numbered error, like `Text` and `Image` do.
 
 ## 3. Templates (Slide subclasses)
 

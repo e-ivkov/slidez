@@ -112,7 +112,7 @@ class Stat(Element):
     accent = ACCENT
 
     def set_inline(self, value):
-        self.number = value
+        self.number = self._inline_text(value, "a number as text")
 
     def render_flow(self, ctx):
         big = ctx.get_font("Manrope").with_size(46)

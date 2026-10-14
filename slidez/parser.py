@@ -22,24 +22,27 @@ heuristic — point users at backticks or fences, which are always literal.
 from __future__ import annotations
 
 import difflib
+import math
 import re
 
 from .ast import ELEMENTS, Presentation, Slide, SlidezError, Text, props_of
 
 STYLE_KEYS = ("font", "size", "color", "background")
+MAX_DEPTH = 100           # indentation levels; guards against runaway nesting
 
 # property name -> checker(value) -> error message, or None if valid
 def _is_num(v):
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    return (isinstance(v, (int, float)) and not isinstance(v, bool)
+            and math.isfinite(v))
 
 
 def _check_pair(v):
     return isinstance(v, tuple) and len(v) == 2 and all(_is_num(x) for x in v)
 
 
-def _validate_prop(target, snake, value, line):
+def _validate_prop(target, snake, value, line, where=None):
     """Fail fast (with line number) on values that would crash at render."""
-    where = f"line {line}: {type(target).__name__}"
+    where = f"line {line}: {where or type(target).__name__}"
 
     def err(expected):
         raise SlidezError(f"{where}: '{snake}' expects {expected}, got {value!r}")
@@ -48,19 +51,25 @@ def _validate_prop(target, snake, value, line):
         return
     if snake in ("position", "dash"):
         if snake == "dash" and isinstance(value, tuple) and len(value) == 1:
+            if value[0] < 0:
+                err("non-negative dash lengths")
             return  # [3] means gap == dash
         if not _check_pair(value):
             err("two numbers, e.g. [0.5, 0.5]")
+        if snake == "dash" and (value[0] < 0 or value[1] < 0):
+            err("non-negative dash lengths")
     elif snake == "size":
         if isinstance(target, (Text, Slide)):
-            if not _is_num(value):
-                err("a number (font size)")
+            if not _is_num(value) or value <= 0:
+                err("a positive number (font size)")
         elif not (isinstance(value, tuple) and value and all(_is_num(x) for x in value)):
             err("numbers, e.g. [0.5, 0.3]")
     elif snake in ("width", "border_width", "head_size", "radius",
                    "item_gap", "indent_step", "padding"):
         if not _is_num(value):
             err("a number")
+        if value < 0:
+            err("a non-negative number")
     elif snake == "bold":
         if not isinstance(value, bool):
             err("true or false")
@@ -73,10 +82,29 @@ def _validate_prop(target, snake, value, line):
     elif snake == "align_v":
         if value not in ("top", "center", "bottom"):
             err("top, center or bottom")
-    elif snake in ("color", "border_color", "marker_color", "fill", "accent"):
-        if isinstance(value, str) and value.startswith("#") \
-                and not re.fullmatch(r"#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?", value):
+    elif snake == "font":
+        if not isinstance(value, str):
+            err("a font name")
+    elif snake == "background":
+        if not isinstance(value, str):
+            err("a color or an image path")
+        if value.startswith("#") and \
+                not re.fullmatch(r"#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?", value):
             err("a color like #RRGGBB")
+    elif snake in ("color", "border_color", "marker_color", "fill", "accent"):
+        if isinstance(value, tuple):
+            if len(value) != 3 or not all(_is_num(x) for x in value):
+                err("three numbers, e.g. [255, 0, 0]")
+        elif not isinstance(value, str):
+            err("a color like #RRGGBB or a name")
+        elif value.startswith("#") and \
+                not re.fullmatch(r"#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?", value):
+            err("a color like #RRGGBB")
+    else:
+        # no explicit rule: if the class default is a string, the value must be
+        default = getattr(type(target), snake, None)
+        if isinstance(default, str) and not isinstance(value, str):
+            err("text")
 
 
 def _suggest(name: str, options) -> str:
@@ -117,6 +145,9 @@ def _strip_comments(src: str) -> list[tuple[str, bool, int]]:
     for lineno, raw in enumerate(src.splitlines(), 1):
         if in_fence:
             if raw.strip() == "```":
+                if "\t" in raw:
+                    raise SlidezError(
+                        f"Tabs are not allowed for indentation (line {lineno})")
                 in_fence = False
                 out.append(("", False, 0))   # fence line acts as a blank
             else:
@@ -170,6 +201,9 @@ def _strip_comments(src: str) -> list[tuple[str, bool, int]]:
             raise SlidezError(f"Unterminated string (line {lineno})")
         cleaned = "".join(chars)
         if cleaned.strip() == "```":
+            if "\t" in raw:
+                raise SlidezError(
+                    f"Tabs are not allowed for indentation (line {lineno})")
             in_fence = True
             fence_indent = len(raw) - len(raw.lstrip(" "))
             fence_start = lineno
@@ -296,6 +330,7 @@ def _to_snake(key: str) -> str:
 
 def parse(source: str, base_dir) -> Presentation:
     """Parse .sldz source into a bound Presentation."""
+    source = source.lstrip("﻿")   # tolerate a UTF-8 BOM
     lines = []   # (indent, text, lineno, group, verbatim)
     group = 0
     for lineno, (raw, verbatim, fence_indent) in enumerate(_strip_comments(source), 1):
@@ -320,7 +355,11 @@ def parse(source: str, base_dir) -> Presentation:
     return _bind(root, base_dir)
 
 
-def _parse_nodes(lines, i, base_indent):
+def _parse_nodes(lines, i, base_indent, depth=0):
+    if depth > MAX_DEPTH:
+        lineno = lines[i - 1][2] if i > 0 else 1
+        raise SlidezError(
+            f"line {lineno}: content nested more than {MAX_DEPTH} levels deep")
     nodes = []
     while i < len(lines):
         indent, text, lineno, group, verbatim = lines[i]
@@ -340,7 +379,7 @@ def _parse_nodes(lines, i, base_indent):
         nodes.append(node)
         i += 1
         if i < len(lines) and lines[i][0] > indent:
-            node.children, i = _parse_nodes(lines, i, lines[i][0])
+            node.children, i = _parse_nodes(lines, i, lines[i][0], depth + 1)
     return nodes, i
 
 
@@ -362,7 +401,9 @@ def _bind(root_nodes, base_dir) -> Presentation:
                         f"Unknown style key '{c.key}' in Slides: block (line {c.line})"
                         f"{_suggest(c.key, [_pascal(k) for k in STYLE_KEYS])}"
                         f" — expected one of: {', '.join(STYLE_KEYS)}")
-                pres.style[snake] = _list_to_tuple(c.value)
+                value = _list_to_tuple(c.value)
+                _validate_prop(Slide(), snake, value, c.line, where="Slides")
+                pres.style[snake] = value
             continue
         cls = ELEMENTS.get(node.key)
         if cls is not None and not issubclass(cls, Slide):

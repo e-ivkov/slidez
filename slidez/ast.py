@@ -58,7 +58,10 @@ def is_color(v) -> bool:
 
 def parse_color(c) -> tuple[int, int, int]:
     if isinstance(c, (tuple, list)) and len(c) == 3:
-        return tuple(int(v) for v in c)
+        try:
+            return tuple(int(v) for v in c)
+        except (TypeError, ValueError):
+            raise SlidezError(f"Invalid color {c!r} (expected three 0-255 numbers)")
     s = NAMED_COLORS.get(str(c).strip().lower(), c)
     s = str(s).strip()
     if not s.startswith("#"):
@@ -145,6 +148,16 @@ class Element:
     def set_inline(self, value):
         raise SlidezError(f"{type(self).__name__} takes no inline value")
 
+    def _inline_text(self, value, what="text"):
+        """Inline values arrive as parsed values; text-like elements want str."""
+        if not isinstance(value, str):
+            line = getattr(self, "_line", None)
+            where = f"line {line}: " if line else ""
+            raise SlidezError(
+                f"{where}{type(self).__name__} expects {what}, got {value!r}"
+                f" — quote it to make it text")
+        return value
+
     def add_bare(self, node, level=0):
         raise SlidezError(f"{type(self).__name__} takes no bare text content")
 
@@ -207,7 +220,7 @@ class Text(Element):
     default_bold = False
 
     def set_inline(self, value):
-        self.contents = value
+        self.contents = self._inline_text(value)
 
     def add_bare(self, node, level=0):
         # deeper-indented bare lines keep their relative indentation
@@ -323,10 +336,11 @@ class Bullets(Text):
         return self.marker if level == 0 else self.sub_marker
 
     def add_bare(self, node, level=0):
-        self.items.append((level, node.value))
+        # like Text._flat_lines: nested 'Key: value' lines are raw content
+        text = node.value if node.key is None else node.raw
+        self.items.append((level, text))
         for child in node.children:
-            if child.key is None:
-                self.add_bare(child, level + 1)
+            self.add_bare(child, level + 1)
 
     def apply_style(self, style: dict):
         super().apply_style(style)
@@ -384,7 +398,7 @@ class Image(Element):
     source = ""
 
     def set_inline(self, value):
-        self.source = value
+        self.source = self._inline_text(value, "a file path")
 
     def path(self, ctx) -> Path:
         if not self.source:
@@ -560,6 +574,10 @@ class Presentation:
         self.slides = []
         self.style = {}
         self.base_dir = Path(base_dir)
+        self.warnings: list[str] = []   # non-fatal issues, e.g. out-of-range values
+
+    def warn(self, message: str):
+        self.warnings.append(message)
 
     def apply_style(self):
         if not FONTS:

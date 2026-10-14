@@ -137,6 +137,10 @@ class RenderContext:
             style = "FD" if border is not None else "F"
         if border is not None:
             self._stroke(border, border_width or 1.0, None)
+        # fpdf divides by min(w, h) for rounded corners — skip them on
+        # degenerate (zero width/height) rects instead of crashing
+        if radius and (w <= 0 or h <= 0):
+            radius = None
         self.pdf.rect(x, y, w, h, style=style,
                       round_corners=bool(radius), corner_radius=radius or 0)
 
