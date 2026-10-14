@@ -1,0 +1,146 @@
+Slides:
+    Font: Montserrat
+    Size: 17
+    Color: "#1F2430"
+
+// ---------- cover ----------
+TitleSlide:
+    Background: "#FFFFFF"
+    Title: "Ferry"
+    Text: "release notes people actually read"
+    Image: "media/logo.png"
+        Position: [0.062, 0.16]
+        Size: [0.055]
+
+// ---------- problem ----------
+Slide:
+    Title: "The problem"
+        Size: 28
+    Bullets:
+        MarkerColor: "#4F46E5"
+        ItemGap: 7
+        every sprint ends with a wall of merged PR titles
+        users find out about fixes from Twitter, not from you
+        **changelog rot**: the file exists, nobody writes it
+    Line:
+        Position: [0.062, 0.37]
+        Size: [0.055, 0]
+        Color: "#4F46E5"
+        BorderWidth: 3
+
+// ---------- how it works: diagram ----------
+Slide:
+    Title: "How it works"
+        Size: 28
+    Box: "connect"
+        Position: [0.06, 0.30]
+        Size: [0.16, 0.11]
+        BorderColor: "#1F2430"
+        BorderWidth: 1.2
+        Radius: 8
+    Arrow:
+        Position: [0.235, 0.355]
+        Size: [0.05, 0]
+        Color: "#98A0B3"
+    Box: "detect"
+        Position: [0.305, 0.30]
+        Size: [0.16, 0.11]
+        BorderColor: "#1F2430"
+        BorderWidth: 1.2
+        Radius: 8
+    Arrow:
+        Position: [0.48, 0.355]
+        Size: [0.05, 0]
+        Color: "#98A0B3"
+    Box: "draft"
+        Position: [0.55, 0.30]
+        Size: [0.16, 0.11]
+        BorderColor: "#1F2430"
+        BorderWidth: 1.2
+        Radius: 8
+    Arrow:
+        Position: [0.725, 0.355]
+        Size: [0.05, 0]
+        Color: "#98A0B3"
+    Box: "publish"
+        Position: [0.795, 0.30]
+        Size: [0.145, 0.11]
+        Fill: "#4F46E5"
+        Color: "#FFFFFF"
+        Radius: 8
+    Text: "Ferry reads merges, labels and tickets — you edit one paragraph and ship."
+        Position: [0.5, 0.55]
+        Width: 0.75
+        AlignH: center
+        Color: "#5B6270"
+
+// ---------- features + chart ----------
+TwoColumnsSlide:
+    Title: "Traction"
+        Size: 28
+    Bullets:
+        MarkerColor: "#4F46E5"
+        Column: 0
+        weekly active teams, seven weeks
+        notes published per team, per week
+        zero-churn since March
+    Image: "media/chart.png"
+        Column: 1
+
+// ---------- product ----------
+ImageRightSlide:
+    Title: "One screen, one job"
+        Size: 28
+    Image: "media/app.png"
+        Role: image
+        Size: [0.52]
+    Bullets:
+        MarkerColor: "#4F46E5"
+        a release, its notes, one Publish button
+        tags your users recognise: New, Fix, Improved
+        Slack and RSS go out automatically
+
+// ---------- pricing cards ----------
+Slide:
+    Title: "Pricing"
+        Size: 28
+    Rect:
+        Position: [0.10, 0.28]
+        Size: [0.36, 0.34]
+        BorderColor: "#D8DEE9"
+        BorderWidth: 1.5
+        Radius: 10
+    Text: "Free"
+        Position: [0.28, 0.36]
+        Width: 0.36
+        AlignH: center
+        Size: 24
+        Bold: true
+    Text: "one repo\ntwo releases a month\ncommunity support"
+        Position: [0.28, 0.50]
+        Width: 0.36
+        AlignH: center
+        Color: "#5B6270"
+    Rect:
+        Position: [0.54, 0.28]
+        Size: [0.36, 0.34]
+        Color: "#4F46E5"
+        Radius: 10
+    Text: "Team"
+        Position: [0.72, 0.36]
+        Width: 0.36
+        AlignH: center
+        Size: 24
+        Bold: true
+        Color: "#FFFFFF"
+    Text: "unlimited releases\nSlack + RSS\ncustom domain"
+        Position: [0.72, 0.50]
+        Width: 0.36
+        AlignH: center
+        Color: "#DDE1FF"
+
+// ---------- closing ----------
+SectionSlide:
+    Background: "#4F46E5"
+    Color: "#FFFFFF"
+    Title: "ferry.dev"

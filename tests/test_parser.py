@@ -502,6 +502,126 @@ class TestVerify(unittest.TestCase):
         main_mod.verify(pres)
         self.assertEqual(pres.warnings, [])
 
+    def test_flow_image_width_capped_to_column(self):
+        # a page-relative Size on a flow image must not overflow its column
+        from slidez.ast import Image
+
+        class _Ctx:
+            W = 960.0
+            base_dir = Path(".")
+
+            def image_size(self, path):
+                return 640.0, 400.0
+
+        img = Image()
+        img.source = "my_image.png"
+        img.size = (0.95,)
+        w, h = img._fit(_Ctx(), 400.0)
+        self.assertLessEqual(w, 400.0)
+        self.assertAlmostEqual(h, w * 400.0 / 640.0)
+
+
+class TestAnchorsAndBox(unittest.TestCase):
+    """Unified absolute anchors and the Box diagram node."""
+
+    def setUp(self):
+        import plugins.fonts  # noqa: F401
+
+    def deck(self, src):
+        pres = parse(src, base_dir=Path("."))
+        apply_style(pres)
+        return pres
+
+    def test_abs_text_anchor_is_align_aware_with_width(self):
+        # with Width, Position anchors by AlignH/AlignV on the text box
+        # (center/center -> Position is the box center)
+        from slidez.ast import Text
+        calls = []
+
+        class Ctx:
+            W = H = 1000.0
+
+            def wrap(self, runs, w, font):
+                return [[("x", False)]]
+
+            def runs_width(self, runs, font):
+                return 50.0
+
+            def line_height(self, font):
+                return 20.0
+
+            def text_block(self, lines, x, y, w, font, color, align_h="left"):
+                calls.append((x, y, w))
+
+        t = Text()
+        t.contents = "hi"
+        t.width = 0.2
+        t.position = (0.5, 0.5)
+        t.align_h = "center"
+        t.align_v = "center"
+        t.font = type("F", (), {"size": 10.0})()
+        t.render_abs(Ctx())
+        # box 200x20 centered on (500, 500) -> top-left (400, 490)
+        self.assertEqual(calls[0], (400.0, 490.0, 200.0))
+
+    def test_box_inline_label_and_geometry(self):
+        pres = self.deck('S:\n    Box: "node"\n        Position: [0.1, 0.2]\n'
+                         '        Size: [0.2, 0.1]\n        Fill: "#EEEEEE"\n')
+        box = pres.slides[0].contents[0]
+        self.assertEqual(box.contents, "node")
+        self.assertEqual(box.size, (0.2, 0.1))
+        self.assertEqual(box.fill, "#EEEEEE")
+
+    def test_box_bare_lines_are_label(self):
+        pres = self.deck('S:\n    Box:\n        Position: [0.1, 0.2]\n'
+                         '        Size: [0.2, 0.1]\n        two\n        lines\n')
+        self.assertEqual(pres.slides[0].contents[0].contents, "two\nlines")
+
+    def test_box_requires_size(self):
+        import main as main_mod
+        pres = self.deck('S:\n    Box: "x"\n        Position: [0.1, 0.2]\n')
+        with self.assertRaises(SlidezError) as cm:
+            main_mod.verify(pres)
+        self.assertIn("Box requires Size", str(cm.exception))
+
+    def test_box_size_is_geometry_not_font(self):
+        # Size: [w, h] on a Box must not be rejected as a font size
+        pres = self.deck('S:\n    Box: "x"\n        Position: [0.1, 0.2]\n'
+                         '        Size: [0.2, 0.1]\n')
+        self.assertEqual(pres.slides[0].contents[0].size, (0.2, 0.1))
+        # a scalar Size on a Box IS an error (geometry needs numbers)
+        with self.assertRaises(SlidezError):
+            self.deck('S:\n    Box: "x"\n        Size: 24\n')
+
+    def test_box_renders(self):
+        import tempfile
+        from slidez.renderers.pdf import PDFRenderer
+        pres = self.deck('S:\n    Box: "node"\n        Position: [0.1, 0.2]\n'
+                         '        Size: [0.2, 0.1]\n        BorderColor: black\n')
+        with tempfile.NamedTemporaryFile(suffix=".pdf") as f:
+            PDFRenderer().render(pres, f.name)
+
+    def test_deck_theme_auto_imported(self):
+        import tempfile
+        import main as main_mod
+        from slidez.ast import ELEMENTS, Slide, register
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "theme.py").write_text(
+                "from slidez.ast import Slide, register\n"
+                "@register\n"
+                "class AutoThemeSlide(Slide):\n"
+                "    background = '#123456'\n", encoding="utf-8")
+            deck = Path(d) / "deck.sldz"
+            deck.write_text("AutoThemeSlide:\n    Text: \"from the auto theme\"\n",
+                            encoding="utf-8")
+            self.assertEqual(main_mod.main([str(deck), "--check"]), 0)
+            self.assertIn("AutoThemeSlide", ELEMENTS)
+        # a plain deck without theme.py is unaffected
+        with tempfile.NamedTemporaryFile("w", suffix=".sldz", delete=False) as f:
+            f.write('S:\n    Text: "x"\n')
+            path = f.name
+        self.assertEqual(main_mod.main([path, "--check"]), 0)
+
     def test_cli_prints_warning_and_renders(self):
         import io
         import tempfile

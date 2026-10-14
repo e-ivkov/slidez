@@ -17,17 +17,32 @@ from types import SimpleNamespace
 # --- plugins: add yours here ---
 import plugins.basic            # common templates + elements
 import plugins.fonts            # font families
-import presentations.slidez_deck.theme   # the about-Slidez deck theme
 
-from slidez.ast import (Image, Line, Rect, Ellipse, Arrow, Text,
+from slidez.ast import (Image, Line, Rect, Ellipse, Arrow, Box, Text,
                         SlidezError, is_color, parse_color)
 from slidez.parser import parse
 from slidez.style import apply_style
 from slidez.renderers.pdf import PDFRenderer
 
 COLOR_PROPS = ("color", "border_color", "marker_color", "fill", "accent")
-SHAPES = (Line, Rect, Ellipse, Arrow)
-NEEDS_POSITION = (Rect, Ellipse, Arrow)
+SHAPES = (Line, Rect, Ellipse, Arrow, Box)      # Size required
+NEEDS_POSITION = (Rect, Ellipse, Arrow)         # no flow fallback
+
+
+def _load_deck_theme(src_path: Path):
+    """Convention: a theme.py sitting next to the deck is auto-imported,
+    so each deck in presentations/ can carry its own plugin."""
+    theme = src_path.parent / "theme.py"
+    if not theme.exists():
+        return
+    import importlib.util
+    name = "slidez_deck_theme_" + src_path.parent.name
+    if name in sys.modules:
+        return
+    spec = importlib.util.spec_from_file_location(name, theme)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
 
 
 def verify(pres) -> str:
@@ -89,6 +104,7 @@ def main(argv=None) -> int:
         print(f"error: no such file: {src_path}", file=sys.stderr)
         return 1
 
+    _load_deck_theme(src_path)
     try:
         pres = parse(src_path.read_text(encoding="utf-8"), src_path.parent)
         apply_style(pres)

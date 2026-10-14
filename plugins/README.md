@@ -241,7 +241,7 @@ are honored by `Text`).
 | `ctx.get_font(name)` | resolve a family name to a `Font`, then `.with_size(n)` |
 | `ctx.wrap(runs, w, font)` | wrap `[(text, bold), ...]` into lines |
 | `ctx.runs_width(runs, font)` | measured width, pt |
-| `ctx.text_block(lines, x, y, w, font, color, align_h)` | draw wrapped lines, returns height |
+| `ctx.text_block(lines, x, y, w, font, color, align_h)` | draw wrapped lines, returns height. A *run* is a `(text, bold)` tuple; a *line* is a **list of runs** — so a one-run line is `[[(\"hi\", True)]]`, not `[(\"hi\", True)]` |
 | `ctx.draw_runs(x, baseline_y, runs, font, color)` | one line of mixed bold runs |
 | `ctx.line_height(font)` / `ctx.baseline_offset(font)` | line metrics |
 | `ctx.fill_rect(x, y, w, h, fill, radius, border, bw)` | rect (any arg optional) |

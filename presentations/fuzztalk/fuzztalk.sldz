@@ -1,0 +1,167 @@
+Slides:
+    Font: Manrope
+    Size: 20
+    Background: "#0D1524"
+
+// ---------- opener (chrome-free) ----------
+FuzzTitle:
+    Title: "Fuzzing the deck compiler"
+    Text: "263,600 random inputs · 11 bug classes · one quiet afternoon"
+    Line:
+        Position: [0.082, 0.55]
+        Size: [0.06, 0]
+        Color: "#7C9CFF"
+        BorderWidth: 3
+
+// ---------- the rig ----------
+FuzzSection:
+    Title: "The rig"
+
+FuzzSlide:
+    Title: "Three fuzzers, one invariant"
+        Font: Montserrat
+        Size: 30
+    Text: "every malformed deck must die as a clean SlidezError — never a traceback, never a hang"
+        Color: "#8CA0B3"
+        Width: 0.9
+    FuzzStat: "200k"
+        Caption: "grammar — raw character soup"
+    FuzzStat: "40k"
+        Caption: "parser — structured random decks"
+    FuzzStat: "4k"
+        Caption: "generator — rendered end-to-end"
+
+FuzzSlide:
+    Title: "The pipeline under test"
+        Font: Montserrat
+        Size: 30
+    Box: "random"
+        Position: [0.06, 0.34]
+        Size: [0.15, 0.10]
+        BorderColor: "#8CA0B3"
+        BorderWidth: 1.3
+        Radius: 7
+    Arrow:
+        Position: [0.225, 0.39]
+        Size: [0.045, 0]
+        Color: "#8CA0B3"
+    Box: "parse"
+        Position: [0.285, 0.34]
+        Size: [0.15, 0.10]
+        BorderColor: "#8CA0B3"
+        BorderWidth: 1.3
+        Radius: 7
+    Arrow:
+        Position: [0.45, 0.39]
+        Size: [0.045, 0]
+        Color: "#8CA0B3"
+    Box: "verify"
+        Position: [0.51, 0.34]
+        Size: [0.15, 0.10]
+        BorderColor: "#8CA0B3"
+        BorderWidth: 1.3
+        Radius: 7
+    Arrow:
+        Position: [0.675, 0.39]
+        Size: [0.045, 0]
+        Color: "#8CA0B3"
+    Box: "PDF"
+        Position: [0.735, 0.34]
+        Size: [0.155, 0.10]
+        Fill: "#7C9CFF"
+        Color: "#0D1524"
+        Bold: true
+        Radius: 7
+    Arrow:
+        Position: [0.60, 0.46]
+        Size: [0.06, 0.10]
+        Color: "#E5484D"
+    Ellipse:
+        Position: [0.61, 0.60]
+        Size: [0.13, 0.15]
+        Color: "#E5484D"
+    Text: "crash bucket"
+        Position: [0.675, 0.675]
+        Width: 0.13
+        AlignH: center
+        AlignV: center
+        Color: "#0D1524"
+        Size: 14
+    Text: "anything that isn't SlidezError is a bug"
+        Position: [0.06, 0.675]
+        Width: 0.46
+        Color: "#8CA0B3"
+
+// ---------- findings ----------
+FuzzSection:
+    Title: "What fell out"
+
+FuzzSlide:
+    Title: "Findings"
+        Font: Montserrat
+        Size: 30
+    Bullets:
+        MarkerColor: "#7C9CFF"
+        ItemGap: 5
+        non-string inline values — Text: 100 was a TypeError at render
+        Slides: style was never validated — Size: big crashed fpdf
+        nan, inf and 1e999 parsed as numbers and produced garbage PDFs
+        Bullets silently dropped nested Key: value lines
+    Callout:
+        The one rule that fell out
+
+        every value gets checked at bind time, with a line number —
+        the user never waits until render to learn the deck is broken.
+
+FuzzColumns:
+    Title: "Before / after"
+        Font: Montserrat
+        Size: 30
+    Text: "before"
+        Bold: true
+        Size: 22
+        Color: "#E5484D"
+        Column: 0
+    Code:
+        Column: 0
+        Size: 15
+        Fill: "#18263E"
+        Color: "#E7EDF5"
+        ```
+        $ python main.py deck.sldz
+
+        Traceback (most recent call last):
+          File "slidez/ast.py", line 221, in finalize
+            self.contents += "\n"
+        TypeError: 'int' object has no
+        attribute 'split'
+        ```
+
+    Text: "after"
+        Bold: true
+        Size: 22
+        Color: "#4CC38A"
+        Column: 1
+    Code:
+        Column: 1
+        Size: 15
+        Fill: "#18263E"
+        Color: "#E7EDF5"
+        ```
+        $ python main.py deck.sldz
+
+        deck.sldz: error: line 2: Text
+        expects text, got 100 — quote it
+        to make it text
+        ```
+
+FuzzSlide:
+    Title: "Where it landed"
+        Font: Montserrat
+        Size: 30
+    FuzzStat: "0"
+        Caption: "crashes left, all three fuzzers"
+    Text: "fuzz/ stays local — the regression suite carries the knowledge"
+        Width: 0.85
+        AlignH: center
+        Color: "#8CA0B3"

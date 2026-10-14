@@ -27,6 +27,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python main.py example.sldz
 .venv/bin/python main.py deck.sldz --check   # verify only, no PDF written
 .venv/bin/python main.py presentations/slidez_deck/deck.sldz  # the about-Slidez deck
+.venv/bin/python main.py presentations/showcase/showcase.sldz # every feature, one tour
 .venv/bin/python -m unittest discover -s tests
 ```
 
@@ -62,12 +63,19 @@ comments. Values: `"strings"` (with `\n` escapes), numbers, `true/false`,
 - `//` comments only start at the beginning of a line or after whitespace,
   so bare URLs (`https://...`) are safe.
 - String escapes: `\n`, `\t`, `\"` and `\\` (use `\\` in Windows paths).
+  Quoted strings are single-line — use `\n` escapes or an indented block
+  for multi-line text (or backticks to keep backslashes verbatim).
 - Backticks for verbatim: `` `C:\new\table.png` `` values (nothing is
   escaped or parsed) and ` ``` ` fenced blocks for multi-line content —
   code, deck-source samples, anything. Inside a fence no line is parsed.
 - Rule of thumb: plain prose and simple code need no quoting — the parser
   disambiguates (URLs, colons in text). When in doubt, backtick it.
 - `**bold**` spans inside text. `Position`/`Size` are in 0-1 slide units.
+  One anchor rule for absolutely positioned `Text`: `AlignH`/`AlignV`
+  pick the anchor point on the text block (left/center/right over
+  top/center/bottom) — with `Width` the block wraps into that box.
+  An image's `Size: [fraction]` is a width fraction of the page; in flow
+  layouts it is capped to the column.
 - Colors: `#RRGGBB` or names (`white`, `red`, ...) — including for
   `Background`; a non-color `Background` is an image path. RGB lists
   (`Color: [255, 0, 0]`) are accepted too.
@@ -75,9 +83,21 @@ comments. Values: `"strings"` (with `\n` escapes), numbers, `true/false`,
   hints: `line 3: unknown property 'Positon' for Text — did you mean 'Position'?`
 
 Core elements (`slidez/ast.py`): `Text`, `Title`, `Bullets`, `Image`, `Line`,
-`Rect`, `Ellipse`, `Arrow`. Common element properties: `Position`, `Size`,
-`Width`, `AlignH`, `AlignV`, `Color`, `BorderColor`, `BorderWidth`, `Column`,
-`Role` (tag an element for a template, e.g. `Role: title`, `Role: image`).
+`Rect`, `Ellipse`, `Arrow`, and `Box` — a rect with a centered label, the
+diagram node:
+
+```
+Box: "verify"
+    Position: [0.57, 0.30]
+    Size: [0.17, 0.11]
+    BorderColor: "#1F2430"
+    Radius: 7
+```
+
+`Fill` is the box background, `Color` the label. Common element properties:
+`Position`, `Size`, `Width`, `AlignH`, `AlignV`, `Color`, `BorderColor`,
+`BorderWidth`, `Column`, `Role` (tag an element for a template, e.g.
+`Role: title`, `Role: image`).
 
 Code blocks don't need escaped strings — just indent them, or fence them:
 
@@ -94,8 +114,10 @@ starts), use a fence — content between the ` ``` ` lines is verbatim.
 
 ## Plugins (templates, elements, fonts)
 
-Everything stylistic lives in plugins; the core stays tiny. Write a module,
-add an import in `main.py`, done — **see [plugins/README.md](plugins/README.md)
+Everything stylistic lives in plugins; the core stays tiny. Write a module
+and import it — or just drop a `theme.py` next to your deck and it is
+auto-imported (that's how every deck in `presentations/` carries its own
+theme). **see [plugins/README.md](plugins/README.md)
 for the full plugin-writing guide** (fonts, custom elements, templates,
 chrome mixins, and the `ctx` drawing API cheat-sheet).
 

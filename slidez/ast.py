@@ -285,20 +285,21 @@ class Text(Element):
         font = self.font
         px, py = self.position[0] * ctx.W, self.position[1] * ctx.H
         if self.width:
-            # explicit box: lines aligned inside it, px/py is its top-left
+            # explicit box: wrap into it
             w = self.width * ctx.W
             lines = ctx.wrap(self._runs(), w, font)
-            align_h = self.align_h or "left"
         else:
-            # no box: px/py anchors the text block (left/center/right,
-            # top/center/bottom) and lines keep their \n breaks
+            # no box: lines keep their \n breaks
             lines = [bold_runs(seg) for seg in self.contents.split("\n")]
             w = max((ctx.runs_width(line, font) for line in lines), default=0.0)
-            align_h = self.align_h or "left"
-            if align_h == "center":
-                px -= w / 2
-            elif align_h == "right":
-                px -= w
+        # one anchor rule for both cases: AlignH/AlignV pick the anchor
+        # point on the text block (left/center/right x top/center/bottom y),
+        # Position is that point
+        align_h = self.align_h or "left"
+        if align_h == "center":
+            px -= w / 2
+        elif align_h == "right":
+            px -= w
         h = len(lines) * ctx.line_height(font)
         y = py
         if self.align_v == "center":
@@ -420,6 +421,7 @@ class Image(Element):
         """Return (w, h) in pt fitting into max_w/max_h, keeping aspect."""
         px, py = ctx.image_size(self.path(ctx))
         w = self.size[0] * ctx.W if self.size else max_w
+        w = min(w, max_w)      # a page-relative Size must not overflow the column
         h = w * py / px
         if max_h and h > max_h:
             h = max_h
@@ -480,6 +482,60 @@ class Rect(Element):
         w, h = self.size[0] * ctx.W, self.size[1] * ctx.H
         ctx.fill_rect(x, y, w, h, self.color, self.radius,
                       self.border_color, self.border_width)
+
+
+@register
+class Box(Text):
+    """A rect with a centered label — the diagram node.
+
+    Position/Size place the box (top-left, like Rect); the inline value or
+    bare lines are the label, wrapped and centered inside. `Fill` is the
+    background, `Color` the label color (as with Code).
+    """
+    fill = None
+    radius = None
+
+    def apply_style(self, style):
+        # `size` is geometry here, not a font size: hide it from the
+        # Text cascade for the duration of the font resolution
+        geo = self.size
+        self.size = None
+        try:
+            super().apply_style(style)
+        finally:
+            self.size = geo
+
+    def render_abs(self, ctx):
+        self._need("position", "size")
+        font = self.font
+        x, y = self.position[0] * ctx.W, self.position[1] * ctx.H
+        w, h = self.size[0] * ctx.W, self.size[1] * ctx.H
+        if self.fill is not None or self.border_color is not None:
+            ctx.fill_rect(x, y, w, h, self.fill, self.radius,
+                          self.border_color, self.border_width)
+        pad = font.size * 0.5
+        lines = ctx.wrap(self._runs(), max(w - 2 * pad, 1.0), font)
+        th = len(lines) * ctx.line_height(font)
+        ctx.text_block(lines, x, y + (h - th) / 2, w, font, self.color,
+                       self.align_h or "center")
+
+    def render_flow(self, ctx):
+        self._need("size")
+        w = self.size[0] * ctx.W
+        h = self.size[1] * ctx.H if len(self.size) > 1 and self.size[1] else w * 0.5
+        saved = self.position, self.size
+        self.position = (ctx.flow_x / ctx.W, ctx.y / ctx.H)
+        self.size = (w / ctx.W, h / ctx.H)
+        try:
+            self.render_abs(ctx)
+        finally:
+            self.position, self.size = saved
+        ctx.y += h + 14
+
+    def height(self, ctx) -> float:
+        w = self.size[0] * ctx.W
+        h = self.size[1] * ctx.H if len(self.size) > 1 and self.size[1] else w * 0.5
+        return h + 14
 
 
 @register

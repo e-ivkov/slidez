@@ -25,7 +25,8 @@ import difflib
 import math
 import re
 
-from .ast import ELEMENTS, Presentation, Slide, SlidezError, Text, props_of
+from .ast import (ELEMENTS, Box, Presentation, Slide, SlidezError, Text,
+                  props_of)
 
 STYLE_KEYS = ("font", "size", "color", "background")
 MAX_DEPTH = 100           # indentation levels; guards against runaway nesting
@@ -59,7 +60,7 @@ def _validate_prop(target, snake, value, line, where=None):
         if snake == "dash" and (value[0] < 0 or value[1] < 0):
             err("non-negative dash lengths")
     elif snake == "size":
-        if isinstance(target, (Text, Slide)):
+        if isinstance(target, (Text, Slide)) and not isinstance(target, Box):
             if not _is_num(value) or value <= 0:
                 err("a positive number (font size)")
         elif not (isinstance(value, tuple) and value and all(_is_num(x) for x in value)):

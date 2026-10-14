@@ -79,7 +79,8 @@ class TitleSlide(Slide):
 @register
 class SectionSlide(TitleSlide):
     """Section intro: big centered title."""
-    title_pos = (0.06, 0.42)
+    # center-anchored (AlignH: center + Width): the point IS the center
+    title_pos = (0.5, 0.42)
     title_align_v = "center"
     title_align_h = "center"
     title_scale = 2.8

@@ -1,0 +1,200 @@
+Slides:
+    Font: Manrope
+    Size: 19
+    Color: "#1F2430"
+
+// ---------- cover ----------
+TitleSlide:
+    Background: "#FAFAF7"
+    Title: "The Slidez Showcase"
+    Text: "every core element, template and value type — in one deck"
+    Rect:
+        Position: [0.062, 0.22]
+        Size: [0.05, 0.007]
+        Color: "#E07A5F"
+
+// ---------- section ----------
+SectionSlide:
+    Background: "#1F2430"
+    Color: "#FAFAF7"
+    Title: "Text & typography"
+
+Slide:
+    Title: "Prose just works"
+        Font: Montserrat
+        Size: 30
+    Text:
+        plain text needs no quoting — colons: like this, URLs https://github.com/e-ivkov/slidez
+        a "quoted fragment" stays inline, and a second line joins the same block
+    Text: "**bold spans** and an escaped \"quote\" in a plain string"
+        Color: [224, 122, 95]
+    Text: `C:\new\table.png — a verbatim value in backticks`
+        Color: "#5B6270"
+    Text: "centered inside its own box"
+        Width: 0.5
+        AlignH: center
+        Position: [0.5, 0.66]
+        AlignV: center
+        Color: "#8A8F98"
+
+Slide:
+    Title: "Bullets"
+        Font: Montserrat
+        Size: 30
+    Bullets:
+        MarkerColor: "#E07A5F"
+        ItemGap: 6
+        top level with **bold** and a URL https://x.io
+            nested one level down
+                deeper still — Score: 100 stays text here
+        back at the top
+    Bullets:
+        Marker: "–"
+        MarkerColor: "#8A8F98"
+        a second list with a custom marker
+
+SectionSlide:
+    Background: "#1F2430"
+    Color: "#FAFAF7"
+    Title: "Code & columns"
+
+Slide:
+    Title: "Code blocks"
+        Font: Montserrat
+        Size: 30
+    Code:
+        Fill: "#F0EDE4"
+        Size: 15
+        def render(self, ctx):
+            """draw every child, top to bottom"""
+
+            for el in self.contents:
+                el.render(ctx)
+    Code:
+        Size: 14
+        Color: "#5B6270"
+        ```
+        Slides:
+            Font: Manrope
+        Slide1:
+            Text: "fenced: #hashes, [lists] and Key: lines are literal"
+        ```
+
+TwoColumnsSlide:
+    Title: "Two columns"
+        Font: Montserrat
+        Size: 30
+    Text: "Left"
+        Bold: true
+        Column: 0
+    Bullets:
+        Column: 0
+        chosen with Column: 0
+        flow layout per column
+    Text: "Right"
+        Bold: true
+        Column: 1
+    Code:
+        Column: 1
+        Size: 13
+        x = flow_x + col * col_w
+
+SectionSlide:
+    Background: "#1F2430"
+    Color: "#FAFAF7"
+    Title: "Shapes & images"
+
+Slide:
+    Title: "A pipeline from primitives"
+        Font: Montserrat
+        Size: 30
+    Box: ".sldz"
+        Position: [0.06, 0.30]
+        Size: [0.17, 0.11]
+        BorderColor: "#1F2430"
+        BorderWidth: 1.3
+        Radius: 7
+    Arrow:
+        Position: [0.245, 0.355]
+        Size: [0.055, 0]
+        Color: "#8A8F98"
+    Box: "parse"
+        Position: [0.315, 0.30]
+        Size: [0.17, 0.11]
+        BorderColor: "#1F2430"
+        BorderWidth: 1.3
+        Radius: 7
+    Arrow:
+        Position: [0.50, 0.355]
+        Size: [0.055, 0]
+        Color: "#8A8F98"
+    Box: "verify"
+        Position: [0.57, 0.30]
+        Size: [0.17, 0.11]
+        BorderColor: "#1F2430"
+        BorderWidth: 1.3
+        Radius: 7
+    Arrow:
+        Position: [0.755, 0.355]
+        Size: [0.055, 0]
+        Color: "#8A8F98"
+    Box: "PDF"
+        Position: [0.825, 0.30]
+        Size: [0.115, 0.11]
+        Fill: "#1F2430"
+        Color: "#FAFAF7"
+        Radius: 7
+    Text: "and a dashed divider, an ellipse and an RGB-list color below"
+        Position: [0.5, 0.55]
+        Width: 0.7
+        AlignH: center
+        Color: "#8A8F98"
+    Line:
+        Position: [0.08, 0.62]
+        Size: [0.84, 0]
+        Color: "#C9CDD4"
+        Dash: [4, 4]
+    Ellipse:
+        Position: [0.44, 0.70]
+        Size: [0.12, 0.17]
+        Color: [224, 122, 95]
+
+ImageLeftSlide:
+    Title: "Image on the left"
+        Font: Montserrat
+        Size: 30
+    Image: "media/chart.png"
+        Role: image
+        Size: [0.40]
+    Bullets:
+        the image fills the tagged Role: image side
+        its Size: [0.4] sets width, aspect kept
+        everything else flows on the right
+
+ImageRightSlide:
+    Title: "Image on the right"
+        Font: Montserrat
+        Size: 30
+    Image: "media/chart.png"
+        Role: image
+        Size: [0.36]
+    Text: "same slide, mirrored — one word in the template name"
+    Bullets:
+        text flows on the left
+        blank-line groups stay separate
+
+ImageSlide:
+    Title: "One big picture"
+        Font: Montserrat
+        Size: 30
+    Image: "media/chart.png"
+
+SectionSlide:
+    Background: "#1F2430"
+    Color: "#FAFAF7"
+    Title: "That's the tour"
+    Text: "slidez — presentations as code · MIT"
+        Position: [0.5, 0.62]
+        Width: 0.8
+        AlignH: center
+        Color: "#8A8F98"
